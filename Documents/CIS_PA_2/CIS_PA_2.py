@@ -6,8 +6,8 @@ from scipy.special import comb
 import os
 
 # ======================== CONFIGURATION ==========================
-# Path to the dataset folder (contains all PA1 debug and unknown files)
-extract_path = r"C:\Users\aarus\Documents\CIS_PA_1\PROGRAMS\DATA\\"
+# Path to the dataset folder (contains all PA2 debug and unknown files)
+extract_path = r"C:\Users\aarus\Documents\CIS_PA_2\DATA\\"
 datasets = os.listdir(extract_path)
 
 
@@ -114,7 +114,8 @@ def pivot_calibration(frames):
     A, b = np.vstack(A_blocks), np.concatenate(b_list)
     sol, *_ = np.linalg.lstsq(A, b, rcond=None)
     p_dimple = sol[3:]  # Extract pivot position (in global frame)
-    return p_dimple
+    p_tip = sol[:3] 
+    return p_tip, g_local
 
 # ===================== BERNSTEIN DEWARPING ====================+==
 def bernstein_polynomial(n, k, v):
@@ -277,9 +278,23 @@ def compute_expected_C(d, a, c, D_frames, A_frames):
         C_expected_frames.append(Cj)
     return C_expected_frames
 
+'''
 def improved_pivot_calibration(frames, correction_models):
+    print(f"  Raw frames shape: {np.array(frames).shape}")
+    
     corrected_frames = [applyBernsteincorrection(F, correction_models) for F in frames]
-
+    
+    # Check the magnitude of correction
+    raw_points = np.vstack(frames)
+    corrected_points = np.vstack(corrected_frames)
+    correction_magnitude = np.linalg.norm(corrected_points - raw_points, axis=1)
+    print(f"  Average correction magnitude: {np.mean(correction_magnitude):.3f} mm")
+    print(f"  Max correction magnitude: {np.max(correction_magnitude):.3f} mm")
+    
+    # Check if corrections are reasonable (should be < 10mm typically)
+    if np.max(correction_magnitude) > 50:
+        print("  WARNING: Excessive distortion correction detected!")
+    
     return pivot_calibration(corrected_frames)
 
 def compute_fiducial_positions(em_fiducial_frames, correction_models, em_pivot):
@@ -314,6 +329,42 @@ def process_navigation_data(G_nav_frames, correction_models, em_pivot, R_reg, p_
         tip_positions_ct.append(tip_ct)
     
     return np.array(tip_positions_ct)
+'''
+
+def compute_fiducial_positions(em_fiducial_frames, correction_models, em_pivot, local_markers):
+    corrected_frames = [applyBernsteincorrection(frame, correction_models) for frame in em_fiducial_frames]
+    '''
+    ref_frame = em_fiducial_frames[0]
+    g_local = ref_frame - ref_frame.mean(axis=0)
+    '''
+
+    B_frames = []
+    for frame in em_fiducial_frames:
+        R, t = point2point_3Dregistration(local_markers, frame)
+        B = frame_transformation(R,em_pivot , t)
+        B_frames.append(B)
+    return np.array(B_frames)
+
+
+def process_navigation_data(G_nav_frames, correction_models, em_pivot, R_reg, p_reg, local_markers):
+    """
+    Process navigation frames to compute tip positions in CT coordinates.
+    """
+    corrected_frames = G_nav_frames
+    '''
+    first_frame = corrected_frames[0]
+    local_markers = first_frame - first_frame.mean(axis=0)
+    '''
+    tip_positions_ct = []
+    for frame in corrected_frames:
+        # Apply distortion correction
+        R,t = point2point_3Dregistration(local_markers, frame)
+        tip_em = frame_transformation(R, em_pivot, t)
+        # Transform to CT coordinates
+        tip_ct = frame_transformation(R_reg, tip_em, p_reg)
+        tip_positions_ct.append(tip_ct)
+    
+    return np.array(tip_positions_ct)
 
 def write_output_file(filename, tip_positions_ct):
     """Write output file in required format for each dataset."""
@@ -337,32 +388,43 @@ def process_dataset(data_prefix):
         D_frames_opt, H_frames, Nd_opt, Nh, Nf_opt = parseOptpivot(
             os.path.join(extract_path, f"{data_prefix}-optpivot.txt"))
         b, Nb = parseCTFiducials(os.path.join(extract_path, f"{data_prefix}-ct-fiducials.txt"))
-        G_emfiducial, Ng_em, Nb_em = parseEMFiducials(os.path.join(extract_path, f"{data_prefix}-em-fiducials.txt"))
-        G_emNav, Ng_nav, Nf_nav = parseEMnav(os.path.join(extract_path, f"{data_prefix}-emnav.txt"))
+        G_emfiducial, Ng_em, Nb_em = parseEMFiducials(os.path.join(extract_path, f"{data_prefix}-em-fiducialss.txt"))
+        G_emNav, Ng_nav, Nf_nav = parseEMnav(os.path.join(extract_path, f"{data_prefix}-EM-nav.txt"))
 
         # --- 2. Compute expected C positions ---
         print("  Computing expected C positions...")
         C_expected_frames = compute_expected_C(d, a, c, D_frames, A_frames)
+        print(f"C_Expected for {data_prefix}")
 
+        print("  Computing expected C positions...")
+        C_expected_frames = compute_expected_C(d, a, c, D_frames, A_frames)
+        
+        
         # --- 3. Distortion Model ---
+    
         print("  Building distortion correction model...")
         distortion_models= bernstein_distortion_correction(C_frames, C_expected_frames, degree =5) 
 
         # --- 4. Pivot Calibration ---
         print("  Performing em pivot calibration...")
-        em_pivot = improved_pivot_calibration(G_frames, distortion_models)
+        em_pivot, local_markers = pivot_calibration(G_frames)
+        #em_pivot = improved_pivot_calibration(G_frames, distortion_models)
+        #pivot_diff = np.linalg.norm(em_pivot - em_pivot_notfixed)
+        #print(f"EM Pivot not fixed - {em_pivot_notfixed}")
+        #print(f"Fixed EM Pivot {em_pivot}")
+        #print(f" Pivt difference:{pivot_diff:.2f} mm")
 
         # --- 5. Fiducial Positions ---
-        B_em = compute_fiducial_positions(G_emfiducial, distortion_models, em_pivot)
+        B_em = compute_fiducial_positions(G_emfiducial, distortion_models, em_pivot, local_markers)
 
         # --- 6. Registration ---
         R_reg, p_reg = point2point_3Dregistration(B_em, b)
 
         # --- 7. Navigation ---
-        tip_positions_ct = process_navigation_data(G_emNav, distortion_models, em_pivot, R_reg, p_reg)
+        tip_positions_ct = process_navigation_data(G_emNav, distortion_models, em_pivot, R_reg, p_reg, local_markers)
 
         # --- 8. Write results ---
-        out_name = f"{data_prefix}-output2.txt"
+        out_name = f"{data_prefix}-myoutput2.txt"
         write_output_file(out_name, tip_positions_ct)
 
         print(f"   Completed {data_prefix}")
@@ -373,6 +435,7 @@ def process_dataset(data_prefix):
 
 
 def main():
+    '''
     """Main loop — process all datasets in directory."""
     for fname in datasets:
         if fname.endswith("-calbody.txt"):
@@ -381,6 +444,8 @@ def main():
         else:
             print(f"Skipping {fname}")
 
+    '''
+    process_dataset("pa2-debug-a")
 
 if __name__ == "__main__":
     main()
