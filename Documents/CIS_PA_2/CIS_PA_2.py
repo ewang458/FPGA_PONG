@@ -122,67 +122,81 @@ def bernstein_polynomial(n, k, v):
     """Compute Bernstein polynomial"""
     return comb(n, k) * (v** k) * ((1 - v) ** (n - k))
 
-def create_tensors(q, degree=5):
+def create_bernstein_tensors(q, degree=3, q_min=None, q_max=None):
+    """
+    Create tensor-product Bernstein basis for points q.
+    If q_min/q_max are provided, normalize accordingly (used for applying corrections).
+    """
     q = np.asarray(q)
     N = q.shape[0]
+
+    if q_min is None:
+        q_min = q.min(axis=0)
+    if q_max is None:
+        q_max = q.max(axis=0)
     
-    # Normalize points to [0,1] range
-    q_min = q.min(axis=0)
-    q_max = q.max(axis=0)
-    u = (q - q_min) / (q_max - q_min + 1e-8)
-    
-    n_tensor= (degree + 1) ** 3
-    tensors = np.zeros((N, n_tensor))
-    
-    for index in range(N):
-        ux, uy, uz = u[index]
-        idx = 0
-        
-        for i in range(degree + 1):
-            for j in range(degree + 1):
-                for k in range(degree + 1):
-                    bx = bernstein_polynomial(degree, i, ux)
-                    by = bernstein_polynomial(degree, j, uy)
-                    bz = bernstein_polynomial(degree, k, uz)
-                    
-                    tensors[index, idx] = bx * by * bz
-                    idx += 1
+    scale = np.maximum(q_max - q_min, 1e-8)
+    u = (q - q_min) / scale  # normalize to [0,1]
+
+    # Compute 1D Bernstein basis for each axis
+    Bx = np.array([bernstein_polynomial(degree, i, u[:,0]) for i in range(degree+1)]).T
+    By = np.array([bernstein_polynomial(degree, j, u[:,1]) for j in range(degree+1)]).T
+    Bz = np.array([bernstein_polynomial(degree, k, u[:,2]) for k in range(degree+1)]).T
+
+    # Compute tensor-product 3D basis
+    tensors = np.einsum('pi,pj,pk->pijk', Bx, By, Bz).reshape(N, -1)
     
     return tensors, q_min, q_max
 
-def bernstein_distortion_correction(C_measured_frames, C_expected_frames, degree=5):
-    """Fit Bernstein polynomial distortion model."""
+def bernstein_distortion_correction(C_measured_frames, C_expected_frames, degree=3, lambda_reg=0.0):
+    """
+    Fit Bernstein polynomial distortion model.
+    lambda_reg > 0 adds Tikhonov regularization to prevent overcorrection.
+    """
     C_meas_all = np.vstack(C_measured_frames)
     C_exp_all = np.vstack(C_expected_frames)
-    
-    F, q_min, q_max = create_tensors(C_meas_all, degree)
-    
+
+    F, q_min, q_max = create_bernstein_tensors(C_meas_all, degree)
+
     correction_models = {
         'degree': degree,
         'points_min': q_min,
         'points_max': q_max,
-        'coefficients': []  
+        'coefficients': []
     }
-    
+
+    # Fit each coordinate
     for coord in range(3):
         P = C_exp_all[:, coord]
-        C, residuals, rank, s = np.linalg.lstsq(F, P, rcond=None)
-        
+        if lambda_reg > 0:
+            # Regularized least squares (ridge)
+            C = np.linalg.solve(F.T @ F + lambda_reg * np.eye(F.shape[1]), F.T @ P)
+        else:
+            C, _, _, _ = np.linalg.lstsq(F, P, rcond=None)
         correction_models['coefficients'].append(C)
-    
+
     return correction_models
 
-def applyBernsteincorrection (q, correction_models):
+def applyBernsteincorrection(q, correction_models):
+    """
+    Apply the fitted Bernstein correction to new points q.
+    """
     q = np.asarray(q)
     if q.ndim == 1:
         q = q.reshape(1, -1)
-    corrected = np.zeros_like(q)
 
-    F, _, _ = create_tensors(q, correction_models['degree'])
+    F, _, _ = create_bernstein_tensors(
+        q,
+        degree=correction_models['degree'],
+        q_min=correction_models['points_min'],
+        q_max=correction_models['points_max']
+    )
+
+    corrected = np.zeros_like(q)
     for coord in range(3):
-        coefficients = correction_models['coefficients'][coord]
-        corrected[:,coord] = F @ coefficients
-    
+        C = correction_models['coefficients'][coord]
+        corrected[:, coord] = F @ C
+
     return corrected
 
 # ======================== FILE PARSERS ===========================
@@ -278,7 +292,7 @@ def compute_expected_C(d, a, c, D_frames, A_frames):
         C_expected_frames.append(Cj)
     return C_expected_frames
 
-'''
+
 def improved_pivot_calibration(frames, correction_models):
     print(f"  Raw frames shape: {np.array(frames).shape}")
     
@@ -297,49 +311,12 @@ def improved_pivot_calibration(frames, correction_models):
     
     return pivot_calibration(corrected_frames)
 
-def compute_fiducial_positions(em_fiducial_frames, correction_models, em_pivot):
-    corrected_frames = [applyBernsteincorrection(frame, correction_models) for frame in em_fiducial_frames]
-    
-    ref_frame = corrected_frames[0]
-    g_local = ref_frame - ref_frame.mean(axis=0)
-
-    B_frames = []
-    for frame in corrected_frames:
-        R, t = point2point_3Dregistration(g_local, frame)
-        B = frame_transformation(R, em_pivot, t)
-        B_frames.append(B)
-    return np.array(B_frames)
-
-
-def process_navigation_data(G_nav_frames, correction_models, em_pivot, R_reg, p_reg):
-    """
-    Process navigation frames to compute tip positions in CT coordinates.
-    """
-    corrected_frames = [applyBernsteincorrection(frame, correction_models) for frame in G_nav_frames]
-
-    first_frame = corrected_frames[0]
-    local_markers = first_frame - first_frame.mean(axis=0)
-    tip_positions_ct = []
-    for frame in corrected_frames:
-        # Apply distortion correction
-        R,t = point2point_3Dregistration(local_markers, frame)
-        tip_em = frame_transformation(R, em_pivot, t)
-        # Transform to CT coordinates
-        tip_ct = frame_transformation(R_reg, tip_em, p_reg)
-        tip_positions_ct.append(tip_ct)
-    
-    return np.array(tip_positions_ct)
-'''
 
 def compute_fiducial_positions(em_fiducial_frames, correction_models, em_pivot, local_markers):
     corrected_frames = [applyBernsteincorrection(frame, correction_models) for frame in em_fiducial_frames]
-    '''
-    ref_frame = em_fiducial_frames[0]
-    g_local = ref_frame - ref_frame.mean(axis=0)
-    '''
 
     B_frames = []
-    for frame in em_fiducial_frames:
+    for frame in corrected_frames:
         R, t = point2point_3Dregistration(local_markers, frame)
         B = frame_transformation(R,em_pivot , t)
         B_frames.append(B)
@@ -350,11 +327,8 @@ def process_navigation_data(G_nav_frames, correction_models, em_pivot, R_reg, p_
     """
     Process navigation frames to compute tip positions in CT coordinates.
     """
-    corrected_frames = G_nav_frames
-    '''
-    first_frame = corrected_frames[0]
-    local_markers = first_frame - first_frame.mean(axis=0)
-    '''
+    corrected_frames = [applyBernsteincorrection(frame, correction_models) for frame in G_nav_frames]
+
     tip_positions_ct = []
     for frame in corrected_frames:
         # Apply distortion correction
@@ -407,7 +381,7 @@ def process_dataset(data_prefix):
 
         # --- 4. Pivot Calibration ---
         print("  Performing em pivot calibration...")
-        em_pivot, local_markers = pivot_calibration(G_frames)
+        em_pivot, local_markers = improved_pivot_calibration(G_frames, distortion_models)
         #em_pivot = improved_pivot_calibration(G_frames, distortion_models)
         #pivot_diff = np.linalg.norm(em_pivot - em_pivot_notfixed)
         #print(f"EM Pivot not fixed - {em_pivot_notfixed}")
@@ -435,7 +409,6 @@ def process_dataset(data_prefix):
 
 
 def main():
-    '''
     """Main loop — process all datasets in directory."""
     for fname in datasets:
         if fname.endswith("-calbody.txt"):
@@ -444,8 +417,7 @@ def main():
         else:
             print(f"Skipping {fname}")
 
-    '''
-    process_dataset("pa2-debug-a")
+    
 
 if __name__ == "__main__":
     main()
