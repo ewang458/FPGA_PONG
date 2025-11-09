@@ -199,7 +199,7 @@ def project_on_segment(a, p, q):
         c = p + lam_seg * qp
     return c, np.sum((a - c) ** 2)
 
-
+'''
 def closest_point_on_triangle(a, p, q, r):
     """
     Barycentric-based closest point on triangle pqr to point a.
@@ -243,6 +243,41 @@ def closest_point_on_triangle(a, p, q, r):
     # If point projects inside the triangle
     if lam >= 0.0 and mu >= 0.0 and (lam + mu) <= 1.0:
         c = p + lam * pq + mu * pr
+        return c, np.sum((a - c) ** 2)
+
+    # Otherwise, the closest point is on one of the edges
+    if (lam < 0):
+        c, d = project_on_segment(a, r, p)
+    elif (mu < 0):
+        c, d = project_on_segment(a, p, q)
+    else: 
+        c, d = project_on_segment(a, q, r)
+    return c, float(d)
+'''
+def closest_point_on_triangle(a, p, q, r):
+    """
+    Barycentric-based closest point on triangle pqr to point a.
+    Returns (closest_point (3,), squared_distance)
+    """
+    a = np.asarray(a, dtype=float)
+    p = np.asarray(p, dtype=float)
+    q = np.asarray(q, dtype=float)
+    r = np.asarray(r, dtype=float)
+
+    # --- Step 1: Solve for barycentric coordinates λ, μ, ν such that
+    # a ≈ λq + μr + νp, with λ + μ + ν = 1
+    # Substitute ν = 1 - λ - μ => a - p ≈ λ(q - p) + μ(r - p)
+    M = np.column_stack((q - p, r - p))  # 3x2 matrix
+    rhs = a - p
+
+    # Least-squares solve for λ and μ
+    lam_mu, _, _, _ = np.linalg.lstsq(M, rhs, rcond=None)
+    lam, mu = lam_mu
+    nu = 1 - lam - mu
+ 
+    # If point projects inside the triangle
+    if lam >= 0.0 and mu >= 0.0 and (lam + mu) <= 1.0:
+        c = lam * q + mu * r + nu * p
         return c, np.sum((a - c) ** 2)
 
     # Otherwise, the closest point is on one of the edges
