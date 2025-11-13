@@ -13,17 +13,17 @@ def check_output_error(output_file, reference_file, verbose=True):
         return np.array(data)
     
     if not os.path.exists(output_file):
-        print(f"⚠️ Output file missing: {output_file}")
+        print(f"Output file missing: {output_file}")
         return None
     if not os.path.exists(reference_file):
-        print(f"⚠️ Reference file missing: {reference_file}")
+        print(f"Reference file missing: {reference_file}")
         return None
     
     your_data = load_output(output_file)
     ref_data = load_output(reference_file)
     
     if your_data.shape != ref_data.shape:
-        print(f"⚠️ Shape mismatch: {your_data.shape} vs {ref_data.shape}")
+        print(f"Shape mismatch: {your_data.shape} vs {ref_data.shape}")
         return None
     
     errors = np.linalg.norm(your_data - ref_data, axis=1)
@@ -52,7 +52,7 @@ def main():
             data_prefix = fname[:-len("-myOutput.txt")]
             
             # Check if dataset letter is in a-f
-            letter = data_prefix.split("-")[1]  # assumes letter is last in prefix
+            letter = data_prefix.split("-")[1]  
             if letter not in letters_to_process:
                 print(f"Skipping dataset {letter}")
                 continue

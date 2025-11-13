@@ -5,12 +5,8 @@ import math
 
 # ===================== Utilities / Geometry =====================
 
+#Function Definitions 
 def compute_bounds(V, Indices):
-    """
-    V: (nv,3)
-    Indices: (nt,3) integers indexing into V
-    Returns: lower (nt,3), upper (nt,3), tris (nt,3,3)
-    """
     V = np.asarray(V, dtype=float)
     Indices = np.asarray(Indices, dtype=int)
     tris = V[Indices]           # shape (nt, 3, 3)
@@ -28,7 +24,7 @@ def project_on_segment(a, p, q):
         c = p.copy()
     else: 
         lambd = np.dot(ap, qp) / np.dot(qp, qp)
-        lam_seg = np.maximum(0, np.minimum(lambd, 1))  # Fixed function names
+        lam_seg = np.maximum(0, np.minimum(lambd, 1))  
         c = p + lam_seg * qp
     return c, np.sum((a - c) ** 2)
 
@@ -36,46 +32,24 @@ def project_on_segment(a, p, q):
 def closest_point_on_triangle(a, p, q, r):
     """
     Barycentric-based closest point on triangle pqr to point a.
-    Returns (closest_point (3,), squared_distance)
     """
     a = np.asarray(a, dtype=float)
     p = np.asarray(p, dtype=float)
     q = np.asarray(q, dtype=float)
     r = np.asarray(r, dtype=float)
 
-    pq = q - p
-    pr = r - p
-    pa = a - p
 
-    # Dot-products for barycentric solve (note: corrected A = dot(pq,pq))
-    A = np.dot(pq, pq)
-    B = np.dot(pq, pr)
-    C = np.dot(pr, pr)
-    D = np.dot(pq, pa)
-    E = np.dot(pr, pa)
+    M = np.column_stack((q - p, r - p))  # 3x2 matrix
+    rhs = a - p
 
-    det = A * C - B * B
-    # Degenerate triangle (collinear / numerical): fallback to nearest vertex
-    if abs(det) < 1e-12:
-        # fallback: check distances to vertices and edges
-        c_p, d2_p = p, np.sum((a - p) ** 2)
-        c_q, d2_q = q, np.sum((a - q) ** 2)
-        c_r, d2_r = r, np.sum((a - r) ** 2)
-        # also check edges robustly
-        c1, d21 = project_on_segment(a, p, q)
-        c2, d22 = project_on_segment(a, q, r)
-        c3, d23 = project_on_segment(a, r, p)
-        all_cs = [c_p, c_q, c_r, c1, c2, c3]
-        all_d2 = [d2_p, d2_q, d2_r, d21, d22, d23]
-        idx = int(np.argmin(all_d2))
-        return all_cs[idx], all_d2[idx]
-
-    lam = (C * D - B * E) / det
-    mu  = (A * E - B * D) / det
-
+    # Least-squares solve for λ and μ
+    lam_mu, _, _, _ = np.linalg.lstsq(M, rhs, rcond=None)
+    lam, mu = lam_mu
+    nu = 1 - lam - mu
+ 
     # If point projects inside the triangle
     if lam >= 0.0 and mu >= 0.0 and (lam + mu) <= 1.0:
-        c = p + lam * pq + mu * pr
+        c = lam * q + mu * r + nu * p
         return c, np.sum((a - c) ** 2)
 
     # Otherwise, the closest point is on one of the edges
@@ -87,41 +61,6 @@ def closest_point_on_triangle(a, p, q, r):
         c, d = project_on_segment(a, q, r)
     return c, float(d)
 
-'''
-def search_with_boxes(a, lower, upper, tris):
-    """
-    Bounding-box accelerated search for closest point on mesh.
-    a: (3,)
-    lower, upper: (nt,3)
-    tris: (nt,3,3)
-    Returns: closest_point (3,), squared_distance
-    """
-    a = np.asarray(a, dtype=float)
-    Nt = tris.shape[0]
-    mag = float("inf")
-    best_c = None
-
-    # Precompute sqrt of best_d2 when needed; use squared comparisons to avoid sqrt calls:
-    for i in range(Nt):
-        vmin = lower[i]
-        vmax = upper[i]
-        # Compute squared distance from point to AABB quickly (vectorized scalar)
-        # dist_box = max(0, vmin - a, a - vmax) componentwise
-        diff_lower = vmin - a
-        diff_upper = a - vmax
-        dist_comp = np.maximum(0.0, np.maximum(diff_lower, diff_upper))
-        d2_box = np.dot(dist_comp, dist_comp)
-        if d2_box > best_d2:
-            continue  # cannot improve
-
-        p, q, r = tris[i]
-        c, d2 = closest_point_on_triangle(a, p, q, r)
-        if d2 < best_d2:
-            best_d2 = d2
-            best_c = c
-
-    return best_c, best_d2
-'''
 def search_with_boxes(a, lower, upper, tris):
     a = np.asarray(a)
     Nt = tris.shape[0]
@@ -145,7 +84,6 @@ def search_with_boxes(a, lower, upper, tris):
 def visualize_triangle_query(V, Indices, query, closest):
     """
     3D visualization of triangle(s), query point, and closest point.
-    Accepts closest = None gracefully.
     """
     fig = plt.figure(figsize=(6, 5))
     ax = fig.add_subplot(111, projection="3d")
@@ -166,7 +104,7 @@ def visualize_triangle_query(V, Indices, query, closest):
     plt.show()
 
 
-# =================== Tests (including segment cases) ===================
+# =================== Tests  ===================
 
 def print_test_result(name, point, expected, result):
     print(f"\n--- {name} ---")

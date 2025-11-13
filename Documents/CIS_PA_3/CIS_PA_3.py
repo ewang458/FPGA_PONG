@@ -1,20 +1,8 @@
+
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
 from scipy.optimize import minimize
 import os
-
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.spatial.transform import Rotation
-from scipy.optimize import minimize
-import os
-
-# ======================== CONFIGURATION ==========================
-# Path to the dataset folder (contains all PA1 debug and unknown files)
-extract_path = r"C:\Users\aarus\Documents\CIS_PA_3\DATA\\"
-datasets = os.listdir(extract_path)
-
 
 # ===================== 3D GEOMETRY UTILITIES =====================
 def pos_3D(x, y, z):
@@ -92,78 +80,48 @@ def point2point_3Dregistration(A, B):
     return R, p
 
 
-# ===================== PIVOT CALIBRATION =========================
-def pivot_calibration(frames):
-    """
-    Compute stationary pivot point given multiple frames of probe markers.
-    Each frame: G_k = R_k * g_local + t_k.
-    Returns p_dimple (fixed pivot point).
-    """
-    if len(frames) < 2:
-        raise ValueError("Need at least two frames.")
-
-    ref = np.asarray(frames[0], float)
-    G0 = ref.mean(axis=0)
-    g_local = ref - G0  # Local marker coordinates
-
-    A_blocks, b_list = [], []
-    for F in frames:
-        F = np.asarray(F, float)
-        # Get rotation & translation of this frame
-        Rk, tk = point2point_3Dregistration(g_local, F - G0)
-        # Build least-squares blocks
-        A_blocks.append(np.hstack([Rk, -np.eye(3)]))
-        b_list.append(-(G0 + tk))
-
-    # Stack all equations and solve A x = b
-    A, b = np.vstack(A_blocks), np.concatenate(b_list)
-    sol, *_ = np.linalg.lstsq(A, b, rcond=None)
-    p_dimple = sol[3:]  # Extract pivot position (in global frame)
-    return p_dimple
-
-
 # ======================== FILE PARSERS ===========================
 def parseBodyA(path):
     """Read BodyA file for A markers coordinates and A tip coordinates."""
     with open(path, "r") as f:
         lines = [ln.strip() for ln in f if ln.strip()]
-    Na= int(lines[0].split()[0])
+    Na= int(lines[0].split()[0]) # read values from header
     idx = 1
-    A = [[float(x) for x in lines[idx+i].split()] for i in range (Na)]
-    A_tip = [[float(x) for x in lines[idx + Na].split()]]
+    A = [[float(x) for x in lines[idx+i].split()] for i in range (Na)] #parse all LED marker coordinates
+    A_tip = [[float(x) for x in lines[idx + Na].split()]] #parse tip coordinate
     return Na, np.array(A), np.array(A_tip)
 
 def parseBodyB(path):
     """Read BodyB file for B markers coordinates and B tip coordinates."""
     with open(path, "r") as f:
         lines = [ln.strip() for ln in f if ln.strip()]
-    Nb= int(lines[0].split()[0])
+    Nb= int(lines[0].split()[0]) #read data amount from header
     idx = 1
-    B = [[float(x) for x in lines[idx+i].split()] for i in range (Nb)]
-    B_tip = [[float(x) for x in lines[idx + Nb].split()]]
+    B = [[float(x) for x in lines[idx+i].split()] for i in range (Nb)] #parse LED marker coordinates
+    B_tip = [[float(x) for x in lines[idx + Nb].split()]] #parse tip coordinate
     return Nb, np.array(B), np.array(B_tip)
 
 def parseMesh(path):
     """Parse Mesh file for vertices and indices"""
     with open(path, "r") as f:
         lines = [ln.strip() for ln in f if ln.strip()]
-    Nv= int(lines[0].split()[0])
-    V = [[float(x) for x in lines[1 + i].split()] for i in range (Nv)]
-    Nt = int(lines[1 + Nv].split()[0])
-    Indices = [[int(x) for x in lines[Nv + i + 2].split()[:3]] for i in range (Nt)]
+    Nv= int(lines[0].split()[0]) #Read number of vertices from header
+    V = [[float(x) for x in lines[1 + i].split()] for i in range (Nv)] #Parse coordinates for Vertices
+    Nt = int(lines[1 + Nv].split()[0]) #Read number of triangles
+    Indices = [[int(x) for x in lines[Nv + i + 2].split()[:3]] for i in range (Nt)] #Pares vertex indices for each triangle
     return Nv, np.array(V), Nt, np.array(Indices)
 
 def parseSampleReadings(path, Na, Nb):
     """Parse sample readings for measurements of A, B, and D markers in tracker coordinates"""
     with open(path, "r") as f:
         lines = [ln.strip() for ln in f if ln.strip()]
-    Nsum, Ns = map(int, lines[0].split(",")[:2])
-    Nd = Nsum - Na - Nb
+    Nsum, Ns = map(int, lines[0].split(",")[:2]) #Read Number of samples and total number of marker frames
+    Nd = Nsum - Na - Nb #find number of dummy frames
     idx = 1
     A_frames = []
     B_frames = []
     D_frames = []
-    for _ in range(Ns):
+    for _ in range(Ns): #parse measured coordinates for LED markers on A, B, and Dummy coordinates
         A = np.array([[float(x) for x in lines[idx + i].split(",")] for i in range(Na)], float); idx += Na
         B = np.array([[float(x) for x in lines[idx + i].split(",")] for i in range(Nb)], float); idx += Nb
         D = np.array([[float(x) for x in lines[idx + i].split(",")] for i in range(Nd)], float); idx += Nd
@@ -174,100 +132,41 @@ def parseSampleReadings(path, Na, Nb):
 
 def compute_bounds(V, Indices):
     """
-    V: (nv,3)
-    Indices: (nt,3) integers indexing into V
-    Returns: lower (nt,3), upper (nt,3), tris (nt,3,3)
+    Compute lower and upper bounds for each triangle in mesh
     """
     V = np.asarray(V, dtype=float)
     Indices = np.asarray(Indices, dtype=int)
-    tris = V[Indices]           # shape (nt, 3, 3)
-    lower = np.min(tris, axis=1)
-    upper = np.max(tris, axis=1)
+    tris = V[Indices] # Make an array with coordinates for vertices of each triangle in each row (shape (nt, 3, 3))
+    lower = np.min(tris, axis=1) #array with minimum bound for each triangle
+    upper = np.max(tris, axis=1) # array with maximum bound for each triangle
     return lower, upper, tris
 
 
 
 def project_on_segment(a, p, q):
-    ap = a - p
+    #Find line segments
+    ap = a - p 
     qp = q - p
-    denom = np.dot(qp, qp)
-    if denom == 0.0:
+    denom = np.dot(qp, qp) #check magnitude of segment pq
+    if denom == 0.0: # if magnitude is 0, set closest point to a vertex
         c = p.copy()
     else: 
-        lambd = np.dot(ap, qp) / np.dot(qp, qp)
-        lam_seg = np.maximum(0, np.minimum(lambd, 1))  # Fixed function names
-        c = p + lam_seg * qp
+        lambd = np.dot(ap, qp) / np.dot(qp, qp) #calculate lambda
+        lam_seg = np.maximum(0, np.minimum(lambd, 1))  #Bind lambda to find lambda for segment
+        c = p + lam_seg * qp # find projected point 
     return c, np.sum((a - c) ** 2)
 
-'''
 def closest_point_on_triangle(a, p, q, r):
     """
     Barycentric-based closest point on triangle pqr to point a.
-    Returns (closest_point (3,), squared_distance)
     """
     a = np.asarray(a, dtype=float)
     p = np.asarray(p, dtype=float)
     q = np.asarray(q, dtype=float)
     r = np.asarray(r, dtype=float)
 
-    pq = q - p
-    pr = r - p
-    pa = a - p
-
-    # Dot-products for barycentric solve 
-    A = np.dot(pq, pq)
-    B = np.dot(pq, pr)
-    C = np.dot(pr, pr)
-    D = np.dot(pq, pa)
-    E = np.dot(pr, pa)
-
-    det = A * C - B * B
-    # Degenerate triangle (collinear / numerical): fallback to nearest vertex
-    if abs(det) < 1e-12:
-        # fallback: check distances to vertices and edges
-        c_p, d2_p = p, np.sum((a - p) ** 2)
-        c_q, d2_q = q, np.sum((a - q) ** 2)
-        c_r, d2_r = r, np.sum((a - r) ** 2)
-        # also check edges robustly
-        c1, d21 = project_on_segment(a, p, q)
-        c2, d22 = project_on_segment(a, q, r)
-        c3, d23 = project_on_segment(a, r, p)
-        all_cs = [c_p, c_q, c_r, c1, c2, c3]
-        all_d2 = [d2_p, d2_q, d2_r, d21, d22, d23]
-        idx = int(np.argmin(all_d2))
-        return all_cs[idx], all_d2[idx]
-
-    lam = (C * D - B * E) / det
-    mu  = (A * E - B * D) / det
-
-    # If point projects inside the triangle
-    if lam >= 0.0 and mu >= 0.0 and (lam + mu) <= 1.0:
-        c = p + lam * pq + mu * pr
-        return c, np.sum((a - c) ** 2)
-
-    # Otherwise, the closest point is on one of the edges
-    if (lam < 0):
-        c, d = project_on_segment(a, r, p)
-    elif (mu < 0):
-        c, d = project_on_segment(a, p, q)
-    else: 
-        c, d = project_on_segment(a, q, r)
-    return c, float(d)
-'''
-def closest_point_on_triangle(a, p, q, r):
-    """
-    Barycentric-based closest point on triangle pqr to point a.
-    Returns (closest_point (3,), squared_distance)
-    """
-    a = np.asarray(a, dtype=float)
-    p = np.asarray(p, dtype=float)
-    q = np.asarray(q, dtype=float)
-    r = np.asarray(r, dtype=float)
-
-    # --- Step 1: Solve for barycentric coordinates λ, μ, ν such that
-    # a ≈ λq + μr + νp, with λ + μ + ν = 1
-    # Substitute ν = 1 - λ - μ => a - p ≈ λ(q - p) + μ(r - p)
-    M = np.column_stack((q - p, r - p))  # 3x2 matrix
+    #Set up system to solve for oordinates λ, μ
+    M = np.column_stack((q - p, r - p)) 
     rhs = a - p
 
     # Least-squares solve for λ and μ
@@ -275,12 +174,12 @@ def closest_point_on_triangle(a, p, q, r):
     lam, mu = lam_mu
     nu = 1 - lam - mu
  
-    # If point projects inside the triangle
+    # Check if point projects inside triangle 
     if lam >= 0.0 and mu >= 0.0 and (lam + mu) <= 1.0:
-        c = lam * q + mu * r + nu * p
+        c = lam * q + mu * r + nu * p #project inside triangle
         return c, np.sum((a - c) ** 2)
 
-    # Otherwise, the closest point is on one of the edges
+    # If not inside, project on edge, checking region by region to determine projection side
     if (lam < 0):
         c, d = project_on_segment(a, r, p)
     elif (mu < 0):
@@ -289,62 +188,32 @@ def closest_point_on_triangle(a, p, q, r):
         c, d = project_on_segment(a, q, r)
     return c, float(d)
 
-'''
 def search_with_boxes(a, lower, upper, tris):
     """
-    Bounding-box accelerated search for closest point on mesh.
-    a: (3,)
-    lower, upper: (nt,3)
-    tris: (nt,3,3)
-    Returns: closest_point (3,), squared_distance
+    Perform search for closest point on mesh with bounding boxes
     """
-    a = np.asarray(a, dtype=float)
-    Nt = tris.shape[0]
-    mag = float("inf")
-    best_c = None
-
-    # Precompute sqrt of best_d2 when needed; use squared comparisons to avoid sqrt calls:
-    for i in range(Nt):
-        vmin = lower[i]
-        vmax = upper[i]
-        # Compute squared distance from point to AABB quickly (vectorized scalar)
-        # dist_box = max(0, vmin - a, a - vmax) componentwise
-        diff_lower = vmin - a
-        diff_upper = a - vmax
-        dist_comp = np.maximum(0.0, np.maximum(diff_lower, diff_upper))
-        d2_box = np.dot(dist_comp, dist_comp)
-        if d2_box > best_d2:
-            continue  # cannot improve
-
-        p, q, r = tris[i]
-        c, d2 = closest_point_on_triangle(a, p, q, r)
-        if d2 < best_d2:
-            best_d2 = d2
-            best_c = c
-
-    return best_c, best_d2
-'''
-def search_with_boxes(a, lower, upper, tris):
     a = np.asarray(a)
     Nt = tris.shape[0]
-    bound2 = np.inf
-    closest = None
+    bound2 = np.inf #set initial bound to infinity
+    closest = None #Variable for holding closest point 
 
     for i in range(Nt):
+        #For each triangle, check if a is within the bounding box (determined with current smallest distance)
         if np.any((a < (lower[i] - np.sqrt(bound2))) | (a > (upper[i] + np.sqrt(bound2)))):
-            continue
+            continue #if it is then keep checking, otherwise discard and go to next triangle
 
         p, q, r = tris[i]
-        c, d2 = closest_point_on_triangle(a, p, q, r)
-        if d2 < bound2:
+        c, d2 = closest_point_on_triangle(a, p, q, r) #find closest point on current triangle 
+        if d2 < bound2:#if distance to point is less than current smallest distance, update closest point and distance
             bound2 = d2
             closest = c
 
     return closest, bound2
 
+# =========================OUTPUT FILES ============================
+
 def write_output_files(filename, d, c, Ns):
-    """Write output file 1 with em and optical dimples and C expected,
-        and write output file 2 with CT tip positions in required format for each dataset."""
+    """Write output file with tip positions d and closest point on mesh c, as well as distance between the two"""
     #Write Output File 1
     with open(filename, "w") as f:
         f.write(f"{Ns} {filename}\n")
@@ -355,15 +224,12 @@ def write_output_files(filename, d, c, Ns):
         
 
 
-
-
 # ======================= DATASET PIPELINE ========================
-def process_dataset(data_prefix):
-    """Run full calibration pipeline for a single dataset prefix."""
+def process_dataset(data_prefix, extract_path):
+    """Run full matching algorithm for a single dataset prefix."""
     print(f"Processing {data_prefix}...")
-
     try:
-        # --- 1. Parse input files ---
+    # --- 1. Parse input files ---
         Na, A, A_tip = parseBodyA(os.path.join(extract_path,"Problem3-BodyA.txt"))
         Nb, B, B_tip = parseBodyB(os.path.join(extract_path,"Problem3-BodyB.txt"))
         Nv , V, Nt, Indices = parseMesh(os.path.join(extract_path,"Problem3MeshFile.sur"))
@@ -371,52 +237,56 @@ def process_dataset(data_prefix):
     except Exception as e:
         print(f"  Error processing {data_prefix}: {e}")
 
+    # --- 2. Find bounds for each triangle ---
     lower, upper, tris = compute_bounds(V, Indices)
     c = []
     d = [] 
 
     A_tip = np.asarray(A_tip).reshape(3,)
 
+    # 3. For each sample find closest points to mesh 
     for k in range(Ns): 
         A_meas = np.asarray(A_frames[k])
         B_meas = np.asarray(B_frames[k])
-
+        # 1. Find transformation between measured LED trackers and trackers in body coordinates 
         R_ak, p_ak = point2point_3Dregistration(A, A_meas)
         R_bk, p_bk = point2point_3Dregistration(B, B_meas)
+        # 2. Apply transformation to A_tip to find A_tip in tracker coordinates 
         a_tracker = frame_transformation(R_ak, A_tip, p_ak)
+
         R_bk_inv = R_bk.T
         p_bk_inv = -R_bk.T@p_bk
+        # 3. Apply inverse transformation to A_tracker to find A_tracker with respect to Body B coordinates (d_k)
         d_k = frame_transformation(R_bk_inv , a_tracker, p_bk_inv)
+
+        # Find closest point to d_k on mesh 
         c_k, _ = search_with_boxes(d_k, lower, upper, tris)
 
         c.append(c_k)
         d.append(d_k)
-
+    
+    # 4. Write results to output file
     out_name = f"{data_prefix}-myOutput.txt"
     write_output_files(out_name, d , c, Ns)
-
-
-
-
 
 def main():
     """Main loop — process all datasets in directory."""
     # Ask the user for the dataset path
-    '''
+
     extract_path = input("Please enter the path to the dataset folder: ").strip()  # Get user input
     
-    # Optionally, ensure the path is valid
+    # ensure the path is valid
     while not os.path.isdir(extract_path):
         print("The path you entered is invalid. Please try again.")
         extract_path = input("Please enter the path to the dataset folder: ").strip()
 
-    datasets = os.listdir(extract_path)
-    '''
+    datasets = os.listdir(extract_path) #extract datasets  
 
+    #Run pipeline for each dataset in folder
     for fname in datasets:
         if fname.endswith("-SampleReadingsTest.txt"):
             data_prefix = fname[:-len("-SampleReadingsTest.txt")]
-            process_dataset(data_prefix)
+            process_dataset(data_prefix, extract_path)
         else:
             print(f"Skipping {fname}")
 
