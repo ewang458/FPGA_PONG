@@ -1,0 +1,101 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2024.1 (win64) Build 5076996 Wed May 22 18:37:14 MDT 2024
+| Date         : Wed Nov 19 14:32:17 2025
+| Host         : AarushiLaptop running 64-bit major release  (build 9200)
+| Command      : report_control_sets -verbose -file lab_f_control_sets_placed.rpt
+| Design       : lab_f
+| Device       : xc7a35t
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Control Set Information
+
+Table of Contents
+-----------------
+1. Summary
+2. Histogram
+3. Flip-Flop Distribution
+4. Detailed Control Set Information
+
+1. Summary
+----------
+
++----------------------------------------------------------+-------+
+|                          Status                          | Count |
++----------------------------------------------------------+-------+
+| Total control sets                                       |    23 |
+|    Minimum number of control sets                        |    23 |
+|    Addition due to synthesis replication                 |     0 |
+|    Addition due to physical synthesis replication        |     0 |
+| Unused register locations in slices containing registers |    83 |
++----------------------------------------------------------+-------+
+* Control sets can be merged at opt_design using control_set_merge or merge_equivalent_drivers
+** Run report_qor_suggestions for automated merging and remapping suggestions
+
+
+2. Histogram
+------------
+
++--------------------+-------+
+|       Fanout       | Count |
++--------------------+-------+
+| Total control sets |    23 |
+| >= 0 to < 4        |     3 |
+| >= 4 to < 6        |     3 |
+| >= 6 to < 8        |     2 |
+| >= 8 to < 10       |     2 |
+| >= 10 to < 12      |     4 |
+| >= 12 to < 14      |     1 |
+| >= 14 to < 16      |     0 |
+| >= 16              |     8 |
++--------------------+-------+
+* Control sets can be remapped at either synth_design or opt_design
+
+
+3. Flip-Flop Distribution
+-------------------------
+
++--------------+-----------------------+------------------------+-----------------+--------------+
+| Clock Enable | Synchronous Set/Reset | Asynchronous Set/Reset | Total Registers | Total Slices |
++--------------+-----------------------+------------------------+-----------------+--------------+
+| No           | No                    | No                     |            1227 |          472 |
+| No           | No                    | Yes                    |               8 |            4 |
+| No           | Yes                   | No                     |              12 |            7 |
+| Yes          | No                    | No                     |             188 |           69 |
+| Yes          | No                    | Yes                    |              94 |           50 |
+| Yes          | Yes                   | No                     |              12 |            4 |
++--------------+-----------------------+------------------------+-----------------+--------------+
+
+
+4. Detailed Control Set Information
+-----------------------------------
+
++--------------+---------------------------------+-------------------+------------------+----------------+--------------+
+| Clock Signal |          Enable Signal          |  Set/Reset Signal | Slice Load Count | Bel Load Count | Bels / Slice |
++--------------+---------------------------------+-------------------+------------------+----------------+--------------+
+|  clkfx_BUFG  |                                 | hsync0            |                1 |              1 |         1.00 |
+|  clkfx_BUFG  |                                 | vsync0            |                1 |              1 |         1.00 |
+|  clkfx_BUFG  | hcount[9]_i_1_n_0               |                   |                1 |              1 |         1.00 |
+|  clkfx_BUFG  | y_count0                        |                   |                1 |              4 |         4.00 |
+|  clkfx_BUFG  | ball_row                        | reset_IBUF        |                2 |              5 |         2.50 |
+|  clkfx_BUFG  | ball_dx                         | reset_IBUF        |                2 |              5 |         2.50 |
+|  clkfx_BUFG  | ball_col[5]_i_1_n_0             | reset_IBUF        |                2 |              6 |         3.00 |
+|  clkfx_BUFG  | colcnt[5]_i_1_n_0               | reset_IBUF        |                3 |              6 |         2.00 |
+|  clkfx_BUFG  |                                 | reset_IBUF        |                4 |              8 |         2.00 |
+|  clkfx_BUFG  | FSM_onehot_game[8]_i_1_n_0      | reset_IBUF        |                3 |              9 |         3.00 |
+|  clkfx_BUFG  |                                 | hcount[9]_i_1_n_0 |                5 |             10 |         2.00 |
+|  clkfx_BUFG  | down1debounce/E[0]              | reset_IBUF        |                5 |             10 |         2.00 |
+|  clkfx_BUFG  | up2debounce/E[0]                | reset_IBUF        |                4 |             10 |         2.50 |
+|  clkfx_BUFG  | rowcnt[4]_i_1_n_0               | reset_IBUF        |                5 |             11 |         2.20 |
+|  clkfx_BUFG  | hcount[9]_i_1_n_0               | vcount            |                4 |             12 |         3.00 |
+|  clkfx_BUFG  | down1debounce/cnt[0]_i_1__1_n_0 |                   |                6 |             22 |         3.67 |
+|  clkfx_BUFG  | down2debounce/cnt[0]_i_1__2_n_0 |                   |                6 |             22 |         3.67 |
+|  clkfx_BUFG  | up1debounce/cnt[0]_i_1_n_0      |                   |                6 |             22 |         3.67 |
+|  clkfx_BUFG  | up2debounce/cnt[0]_i_1__0_n_0   |                   |                6 |             22 |         3.67 |
+|  clkfx_BUFG  | ball_y0                         |                   |               25 |             32 |         1.28 |
+|  clkfx_BUFG  | ball_y                          | reset_IBUF        |               24 |             32 |         1.33 |
+|  clkfx_BUFG  | y_change0                       |                   |               18 |             63 |         3.50 |
+|  clkfx_BUFG  |                                 |                   |              472 |           1227 |         2.60 |
++--------------+---------------------------------+-------------------+------------------+----------------+--------------+
+
+
