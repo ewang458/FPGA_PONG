@@ -3,8 +3,8 @@
 # SW Build 5076996 on Wed May 22 18:37:14 MDT 2024
 # IP Build 5075265 on Wed May 22 21:45:21 MDT 2024
 # SharedData Build 5076995 on Wed May 22 18:29:18 MDT 2024
-# Start of session at: Wed Nov 19 14:31:34 2025
-# Process ID: 28404
+# Start of session at: Wed Nov 19 21:26:22 2025
+# Process ID: 16916
 # Current directory: C:/Users/aarus/OneDrive/Documents/FPGA/pongggg/pongggg.runs/impl_1
 # Command line: vivado.exe -log lab_f.vdi -applog -product Vivado -messageDb vivado.pb -mode batch -source lab_f.tcl -notrace
 # Log file: C:/Users/aarus/OneDrive/Documents/FPGA/pongggg/pongggg.runs/impl_1/lab_f.vdi
@@ -19,6 +19,6 @@
 # Host memory       :16849 MB
 # Swap memory       :28991 MB
 # Total Virtual     :45840 MB
-# Available Virtual :26037 MB
+# Available Virtual :23989 MB
 #-----------------------------------------------------------
 source lab_f.tcl -notrace
