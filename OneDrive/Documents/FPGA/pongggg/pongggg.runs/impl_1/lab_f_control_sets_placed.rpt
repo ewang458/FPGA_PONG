@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2024.1 (win64) Build 5076996 Wed May 22 18:37:14 MDT 2024
-| Date         : Wed Nov 19 21:27:43 2025
+| Date         : Thu Nov 20 00:30:17 2025
 | Host         : AarushiLaptop running 64-bit major release  (build 9200)
 | Command      : report_control_sets -verbose -file lab_f_control_sets_placed.rpt
 | Design       : lab_f
@@ -23,11 +23,11 @@ Table of Contents
 +----------------------------------------------------------+-------+
 |                          Status                          | Count |
 +----------------------------------------------------------+-------+
-| Total control sets                                       |    21 |
-|    Minimum number of control sets                        |    21 |
+| Total control sets                                       |    23 |
+|    Minimum number of control sets                        |    23 |
 |    Addition due to synthesis replication                 |     0 |
 |    Addition due to physical synthesis replication        |     0 |
-| Unused register locations in slices containing registers |    73 |
+| Unused register locations in slices containing registers |    88 |
 +----------------------------------------------------------+-------+
 * Control sets can be merged at opt_design using control_set_merge or merge_equivalent_drivers
 ** Run report_qor_suggestions for automated merging and remapping suggestions
@@ -39,15 +39,15 @@ Table of Contents
 +--------------------+-------+
 |       Fanout       | Count |
 +--------------------+-------+
-| Total control sets |    21 |
-| >= 0 to < 4        |     2 |
+| Total control sets |    23 |
+| >= 0 to < 4        |     3 |
 | >= 4 to < 6        |     1 |
-| >= 6 to < 8        |     3 |
-| >= 8 to < 10       |     0 |
+| >= 6 to < 8        |     2 |
+| >= 8 to < 10       |     1 |
 | >= 10 to < 12      |     2 |
 | >= 12 to < 14      |     2 |
 | >= 14 to < 16      |     0 |
-| >= 16              |    11 |
+| >= 16              |    12 |
 +--------------------+-------+
 * Control sets can be remapped at either synth_design or opt_design
 
@@ -58,12 +58,12 @@ Table of Contents
 +--------------+-----------------------+------------------------+-----------------+--------------+
 | Clock Enable | Synchronous Set/Reset | Asynchronous Set/Reset | Total Registers | Total Slices |
 +--------------+-----------------------+------------------------+-----------------+--------------+
-| No           | No                    | No                     |            4828 |         2894 |
-| No           | No                    | Yes                    |              11 |            7 |
+| No           | No                    | No                     |            4828 |         2409 |
+| No           | No                    | Yes                    |              11 |            5 |
 | No           | Yes                   | No                     |              12 |            5 |
-| Yes          | No                    | No                     |             156 |           48 |
-| Yes          | No                    | Yes                    |             197 |          106 |
-| Yes          | Yes                   | No                     |              35 |            8 |
+| Yes          | No                    | No                     |             158 |           60 |
+| Yes          | No                    | Yes                    |             173 |           89 |
+| Yes          | Yes                   | No                     |              18 |            4 |
 +--------------+-----------------------+------------------------+-----------------+--------------+
 
 
@@ -75,25 +75,27 @@ Table of Contents
 +--------------+---------------------------------+-------------------+------------------+----------------+--------------+
 |  clkfx_BUFG  |                                 | hsync0            |                1 |              1 |         1.00 |
 |  clkfx_BUFG  |                                 | vsync0            |                1 |              1 |         1.00 |
-|  clkfx_BUFG  | y_count0                        |                   |                1 |              4 |         4.00 |
-|  clkfx_BUFG  | ball_row                        | reset_IBUF        |                4 |              6 |         1.50 |
-|  clkfx_BUFG  | ball_col[6]_i_1_n_0             | reset_IBUF        |                4 |              7 |         1.75 |
-|  clkfx_BUFG  | colcnt[6]_i_1_n_0               | reset_IBUF        |                4 |              7 |         1.75 |
+|  clkfx_BUFG  | hcount[9]_i_1_n_0               |                   |                1 |              2 |         2.00 |
+|  clkfx_BUFG  | y_count0                        |                   |                3 |              4 |         1.33 |
+|  clkfx_BUFG  | ball_row[5]_i_1_n_0             | reset_IBUF        |                6 |              6 |         1.00 |
+|  clkfx_BUFG  | ball_col[6]_i_1_n_0             | reset_IBUF        |                2 |              7 |         3.50 |
+|  clkfx_BUFG  | ball_dx[6]_i_1_n_0              | reset_IBUF        |                3 |              9 |         3.00 |
 |  clkfx_BUFG  |                                 | hcount[9]_i_1_n_0 |                3 |             10 |         3.33 |
-|  clkfx_BUFG  |                                 | reset_IBUF        |                7 |             11 |         1.57 |
-|  clkfx_BUFG  | up1debounce/E[0]                | reset_IBUF        |                7 |             12 |         1.71 |
-|  clkfx_BUFG  | up2debounce/E[0]                | reset_IBUF        |                6 |             12 |         2.00 |
+|  clkfx_BUFG  |                                 | reset_IBUF        |                5 |             11 |         2.20 |
+|  clkfx_BUFG  | up1debounce/E[0]                | reset_IBUF        |                6 |             12 |         2.00 |
+|  clkfx_BUFG  | up2debounce/E[0]                | reset_IBUF        |                7 |             12 |         1.71 |
+|  clkfx_BUFG  | hcount[9]_i_1_n_0               | vcount            |                4 |             18 |         4.50 |
+|  clkfx_BUFG  | down1debounce/cnt[0]_i_1__0_n_0 |                   |                6 |             22 |         3.67 |
 |  clkfx_BUFG  | down2debounce/cnt[0]_i_1_n_0    |                   |                6 |             22 |         3.67 |
 |  clkfx_BUFG  | up1debounce/cnt[0]_i_1__2_n_0   |                   |                6 |             22 |         3.67 |
 |  clkfx_BUFG  | up2debounce/cnt[0]_i_1__1_n_0   |                   |                6 |             22 |         3.67 |
-|  clkfx_BUFG  | down1debounce/cnt[0]_i_1__0_n_0 |                   |                6 |             22 |         3.67 |
-|  clkfx_BUFG  | ball_y0                         |                   |               16 |             32 |         2.00 |
-|  clkfx_BUFG  | y_thresh0                       |                   |                7 |             32 |         4.57 |
-|  clkfx_BUFG  | hcount[9]_i_1_n_0               | vcount            |                8 |             35 |         4.38 |
-|  clkfx_BUFG  | ball_dy                         | reset_IBUF        |               34 |             38 |         1.12 |
-|  clkfx_BUFG  | rowcnt[5]_i_1_n_0               | reset_IBUF        |               19 |             57 |         3.00 |
-|  clkfx_BUFG  | FSM_sequential_game[3]_i_1_n_0  | reset_IBUF        |               28 |             58 |         2.07 |
-|  clkfx_BUFG  |                                 |                   |             2894 |           4828 |         1.67 |
+|  clkfx_BUFG  | FSM_sequential_game[3]_i_1_n_0  | reset_IBUF        |                9 |             25 |         2.78 |
+|  clkfx_BUFG  | ball_dy[31]_i_1_n_0             | reset_IBUF        |               32 |             32 |         1.00 |
+|  clkfx_BUFG  | ball_y[31]_i_1_n_0              |                   |               20 |             32 |         1.60 |
+|  clkfx_BUFG  | y_thresh0                       |                   |               12 |             32 |         2.67 |
+|  clkfx_BUFG  | colcnt[6]_i_1_n_0               | reset_IBUF        |               12 |             35 |         2.92 |
+|  clkfx_BUFG  | rowcnt[5]_i_1_n_0               | reset_IBUF        |               12 |             35 |         2.92 |
+|  clkfx_BUFG  |                                 |                   |             2409 |           4828 |         2.00 |
 +--------------+---------------------------------+-------------------+------------------+----------------+--------------+
 
 

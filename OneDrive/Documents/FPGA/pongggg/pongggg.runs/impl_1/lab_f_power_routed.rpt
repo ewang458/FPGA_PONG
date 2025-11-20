@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
 -------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2024.1 (win64) Build 5076996 Wed May 22 18:37:14 MDT 2024
-| Date             : Wed Nov 19 21:28:49 2025
+| Date             : Thu Nov 20 00:32:32 2025
 | Host             : AarushiLaptop running 64-bit major release  (build 9200)
 | Command          : report_power -file lab_f_power_routed.rpt -pb lab_f_power_summary_routed.pb -rpx lab_f_power_routed.rpx
 | Design           : lab_f
@@ -30,10 +30,10 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.195        |
+| Total On-Chip Power (W)  | 0.191        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.123        |
+| Dynamic (W)              | 0.119        |
 | Device Static (W)        | 0.072        |
 | Effective TJA (C/W)      | 5.0          |
 | Max Ambient (C)          | 84.0         |
@@ -52,18 +52,18 @@ Table of Contents
 +----------------+-----------+----------+-----------+-----------------+
 | On-Chip        | Power (W) | Used     | Available | Utilization (%) |
 +----------------+-----------+----------+-----------+-----------------+
-| Clocks         |     0.013 |        5 |       --- |             --- |
-| Slice Logic    |     0.007 |    24881 |       --- |             --- |
-|   LUT as Logic |     0.007 |    15076 |     20800 |           72.48 |
-|   Register     |    <0.001 |     5239 |     41600 |           12.59 |
-|   CARRY4       |    <0.001 |       97 |      8150 |            1.19 |
-|   F7/F8 Muxes  |    <0.001 |      669 |     32600 |            2.05 |
+| Clocks         |     0.011 |        5 |       --- |             --- |
+| Slice Logic    |     0.006 |    19517 |       --- |             --- |
+|   LUT as Logic |     0.006 |    11558 |     20800 |           55.57 |
+|   Register     |    <0.001 |     5200 |     41600 |           12.50 |
+|   CARRY4       |    <0.001 |       99 |      8150 |            1.21 |
+|   F7/F8 Muxes  |    <0.001 |      689 |     32600 |            2.11 |
 |   Others       |     0.000 |       12 |       --- |             --- |
-| Signals        |     0.008 |    18260 |       --- |             --- |
+| Signals        |     0.007 |    12901 |       --- |             --- |
 | MMCM           |     0.094 |        1 |         5 |           20.00 |
 | I/O            |    <0.001 |       16 |       106 |           15.09 |
 | Static Power   |     0.072 |          |           |                 |
-| Total          |     0.195 |          |           |                 |
+| Total          |     0.191 |          |           |                 |
 +----------------+-----------+----------+-----------+-----------------+
 
 
@@ -73,7 +73,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.038 |       0.028 |      0.010 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.034 |       0.025 |      0.010 |       NA    | Unspecified | NA         |
 | Vccaux    |       1.800 |     0.065 |       0.052 |      0.013 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.001 |       0.000 |      0.001 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -144,7 +144,7 @@ Table of Contents
 +-------+-----------+
 | Name  | Power (W) |
 +-------+-----------+
-| lab_f |     0.123 |
+| lab_f |     0.119 |
 +-------+-----------+
 
 
