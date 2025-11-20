@@ -50,10 +50,10 @@ end component;
 	--signal pad2_bot: unsigned(4 downto 0) := to_unsigned(17, 5);
 	--signal pad1_top: unsigned(4 downto 0) := to_unsigned(11, 5);
 	--signal pad1_bot: unsigned(4 downto 0) := to_unsigned(17, 5);
-	signal ball_dx: integer:= 1;
-	signal ball_dy: integer:= 1;
-	signal y_change: integer; 
-	signal y_thresh: integer;
+	signal ball_dx: signed(3 downto 0) := to_signed(1,4);
+	signal ball_dy: signed(3 downto 0) := to_signed(1,4);
+	signal y_change: signed(3 downto 0); 
+	signal y_thresh: signed(3 downto 0);
 	signal y_count: unsigned(3 downto 0);
 	signal ball_row: unsigned(5 downto 0):= to_unsigned(30,6);
 	signal ball_col: unsigned(6 downto 0) := to_unsigned(40,7);
@@ -252,8 +252,8 @@ begin
         --pad1_bot <= to_unsigned(17,5);
         --pad2_top <= to_unsigned(11,5);
         --pad2_bot <= to_unsigned(17,5);
-        ball_dx <= 1;
-        ball_dy <= 1;
+        ball_dx <= to_signed(1,4);
+        ball_dy <= to_signed(1,4);
         score1 <= '0';
         score2 <= '0';
         xcount <= '0';
@@ -352,244 +352,321 @@ begin
                        pad2_bot <= pad2_bot + 1;
                    end if;
                 end if; 
-                game <= updateBall; -- add update score state 
+                game <= updateBall; -- add update score state
             when updateBall =>      -- if in update score block then only set to 1 if ball, no setting to zero otherwise          
-                        if ((ball_col > 1) and (ball_col < 78)) then --1, 78
-                            if ((ball_row <= 1) or (ball_row >= 58))then 
-                                ball_y := -ball_dy;
-                            else 
-                                ball_y := ball_dy;
-                            end if;
-                        elsif ((ball_col = 1) or (ball_col = 78)) then --1, 78
-                            if (ball_col = 1) then 
-                                if ((ball_row >= pad1_top) and (ball_row < pad1_top + 3)) then  -- make sure u adjust to 12 
-                                   --ball_col <= to_unsigned(2,7);
-                                    if (ball_dy < 0) then 
-                                        if ((ball_dy - 1) < -4) then 
-                                            ball_y := -4;
-                                            ball_dy <= -4;
-                                        else
-                                            ball_y:= ball_dy -1;
-                                            ball_dy <= ball_dy -1;
-                                        end if;
-                                    else  
-                                        if ((-ball_dy - 1) < -4) then
-                                            ball_y := -4;
-                                            ball_dy <= -4;
-                                        else 
-                                            ball_y := -ball_dy -1;
-                                            ball_dy <= -ball_dy -1;
-                                        end if;
-                                    end if;
-                                    ball_dx <= -ball_dx;
-                                    hit_counter <= hit_counter + 1;
-                                elsif ((ball_row >= pad1_top +3) and (ball_row <pad1_top +9)) then 
-                                  --ball_col <= to_unsigned(2,7);
-                                    if (ball_dy < 0) then 
-                                        ball_y := -ball_dy - 1; 
-                                        ball_dy <= -ball_dy -1;  
-                                    else 
-                                        ball_y := -ball_dy + 1;
-                                        ball_dy <= -ball_dy +1;
-                                    end if;
-                                    ball_dx <= -ball_dx;
-                                    hit_counter <= hit_counter + 1;
-                                elsif ((ball_row >= pad1_top + 9) and (ball_row < pad1_bot)) then 
-                                   --ball_col <= to_unsigned(2,7);
-                                    if (ball_dy < 0) then 
-                                        if (-ball_dy + 1 > 4) then 
-                                            ball_y := 4;
-                                            ball_dy <= 4;
-                                        else 
-                                            ball_dy <= -ball_dy + 1;
-                                            ball_y := ball_dy + 1;
-                                        end if;
-                                    elsif (ball_dy > 0) then 
-                                        if (ball_dy + 1 > 4) then 
-                                            ball_y := 4;
-                                            ball_dy <= 4;
-                                        else 
-                                            ball_dy <= ball_dy + 1;
-                                            ball_y := ball_dy + 1;
-                                        end if;
-                                    else
-                                        ball_y := 1;
-                                        ball_dy <= 1;
-                                    end if;
-                                    ball_dx <= -ball_dx;
-                                    hit_counter <= hit_counter + 1;
-                                else
-                                    ball_y:= ball_dy;
-                                end if;
-                            elsif (ball_col = 78) then --78
-                                if ((ball_row >= pad2_top) and (ball_row < pad2_top + 3)) then  -- make sure u adjust to 12 
-                                   --ball_col <= to_unsigned(77,7);
-                                    if (ball_dy < 0) then 
-                                        if ((ball_dy - 1) < -4) then 
-                                            ball_y := -4;
-                                            ball_dy <= -4;
-                                        else
-                                            ball_y:= ball_dy -1;
-                                            ball_dy <= ball_dy -1;
-                                        end if;
-                                    else  
-                                        if ((-ball_dy - 1) < -4) then
-                                            ball_y := -4;
-                                            ball_dy <= -4;
-                                        else 
-                                            ball_y := -ball_dy -1;
-                                            ball_dy <= -ball_dy -1;
-                                        end if;
-                                    end if;
-                                    ball_dx <= -ball_dx;
-                                    hit_counter <= hit_counter + 1;
-                                elsif ((ball_row >= pad2_top +3) and (ball_row <pad2_top +9)) then 
-                                   --ball_col <= to_unsigned(77,7);
-                                    if (ball_dy < 0) then 
-                                        ball_y := -ball_dy - 1; 
-                                        ball_dy <= -ball_dy -1;  
-                                    else 
-                                        ball_y := -ball_dy + 1;
-                                        ball_dy <= -ball_dy +1;
-                                    end if;
-                                    ball_dx <= -ball_dx;
-                                    hit_counter <= hit_counter + 1;
-                                elsif ((ball_row >= pad2_top + 9) and (ball_row < pad2_bot)) then 
-                                   --ball_col <= to_unsigned(77,7);
-                                    if (ball_dy < 0) then 
-                                        if (-ball_dy + 1 > 4) then 
-                                            ball_y := 4;
-                                            ball_dy <= 4;
-                                        else 
-                                            ball_dy <= -ball_dy + 1;
-                                            ball_y := ball_dy + 1;
-                                        end if;
-                                    elsif (ball_dy > 0) then 
-                                        if (ball_dy + 1 > 4) then 
-                                            ball_y := 4;
-                                            ball_dy <= 4;
-                                        else 
-                                            ball_dy <= ball_dy + 1;
-                                            ball_y := ball_dy + 1;
-                                        end if;
-                                    else
-                                        ball_y := 1;
-                                        ball_dy<= 1;
-                                    end if;
-                                    ball_dx <= -ball_dx;
-                                    hit_counter <= hit_counter + 1;
-                                else
-                                    ball_y:= ball_dy;
-                                end if;
-                          end if;
-                      elsif ((ball_col = 0) or (ball_col = 79)) then  -- --0 or 79can edit to go to middle and then go again when start button hit from users side but for now this good
-                            if (ball_col = 0) then
-                                ball_dx <= 1;
-                                if (ball_dy < 0) then 
-                                    ball_y:= -1;
-                                    ball_dy <= -1;
-                                else 
-                                    ball_y:= 1;
-                                    ball_dy <= 1;
-                                end if;
-                                score2<= '1';
-                             elsif (ball_col = 79) then --79
-                                ball_dx <= -1;
-                                if (ball_dy < 0) then 
-                                    ball_y := -1;
-                                    ball_dy <= -1;
-                                else 
-                                    ball_y := 1;
-                                    ball_dy <= 1;
-                                end if;
-                                score1 <= '1';
-                             end if;
-                    end if;
-                    if (ball_dy /= ball_y) then 
-                        if (ball_y < 0) then 
-                            y_thresh <= -ball_y;
-                            y_change <= -1;
-                        else 
-                            y_thresh <= ball_y;
-                            y_change <= 1;
-                        end if;
-                    end if;
-                    
-                    if (((ball_col = 78) and (ball_row >= pad2_top) and (ball_row < pad2_bot)) or ((ball_col = 1) and (ball_row >= pad1_top) and (ball_row < pad1_bot))) then
-                        if (ball_y < 0) then 
-                            y_count <= to_unsigned(-ball_y, 4);
-                        else 
-                            y_count <= to_unsigned(ball_y, 4);
-                        end if;
-                    elsif (ball_dy /= ball_y) then 
-                        y_count <= to_unsigned(0,4);
-                    end if;
-                         
-                    if (hit_counter = 2) then 
-                        ballcnt <= b"000";
-                        hit_counter <= to_unsigned(0,3);
-                        if (speed > 0) then 
-                            speed <= speed -1;
-                        end if;
-                    end if;    
-                    game <= moveBall;
-                    rowcnt <= to_unsigned(1,6); --1,6
-               when moveBall =>
-                if ((ball_col = 0) or (ball_col = 79)) then 
-                   ball_col <= to_unsigned(40, 7);
-                   ball_row <= to_unsigned(30,6);
-                elsif (ballcnt < speed) then 
+                if (ballcnt < speed) then 
                     ballcnt <= ballcnt + 1;
-                else
+                else 
+                ballcnt <= b"000";
+                if (abs(ball_dy) = 1) then 
+                    y_count <= b"0000";
+                    if ((ball_col = 1) or (ball_col = 78)) then --1, 78
+                        if (ball_col = 1) then 
+                            if ((ball_row >= pad1_top) and (ball_row < pad1_top + 3)) then  -- make sure u adjust to 12 
+                                ball_col <= ball_col + 1;
+                                ball_dx <= to_signed(1,4);
+                                if (ball_dy < 0) then 
+                                        ball_dy <= ball_dy -1;
+                                        y_thresh <= abs(ball_dy - 1);
+                                        y_change <= to_signed(-1,4);
+                                else  
+                                        ball_dy <= -ball_dy -1;
+                                        y_thresh <= abs(-ball_dy -1);
+                                        y_change <= to_signed(-1,4);
+                                end if;
+                                hit_counter <= hit_counter + 1;
+                           elsif ((ball_row >= pad1_top +3) and (ball_row <pad1_top +9)) then 
+                                ball_col <= ball_col + 1;
+                                ball_dx <= to_signed(1, 4);
+                                ball_dy <= to_signed(0,4);
+                                y_thresh <= to_signed(0,4);
+                                y_change <= to_signed(0,4);
+                                hit_counter <= hit_counter + 1;
+                           elsif ((ball_row >= pad1_top + 9) and (ball_row < pad1_bot)) then 
+                                ball_col <= ball_col + 1;
+                                ball_dx <= to_signed(1, 4);
+                                if (ball_dy < 0) then 
+                                        ball_dy <= -ball_dy + 1;
+                                        y_thresh <= -ball_dy + 1;
+                                        y_change <= to_signed(1, 4);
+                                else
+                                        ball_dy <= ball_dy + 1;
+                                        y_thresh <= ball_dy + 1;
+                                        y_change <= to_signed(1,4);
+                               end if;
+                                hit_counter <= hit_counter + 1;
+                           else
+                                ball_col <= ball_col + to_integer(ball_dx);
+                                ball_row <= ball_row + to_integer(ball_dy);
+                           end if;
+                   elsif (ball_col = 78) then 
+                            if ((ball_row >= pad2_top) and (ball_row < pad2_top + 3)) then  -- make sure u adjust to 12 
+                                ball_col <= ball_col - 1;
+                                ball_dx <= to_signed(-1,4);
+                                if (ball_dy < 0) then 
+                                        ball_dy <= ball_dy -1;
+                                else  
+                                        ball_dy <= -ball_dy -1;
+                                end if;
+                                hit_counter <= hit_counter + 1;
+                           elsif ((ball_row >= pad2_top +3) and (ball_row <pad2_top +9)) then 
+                                ball_col <= ball_col - 1;
+                                ball_dx <= to_signed(-1, 4);
+                                if (ball_dy < 0) then 
+                                    ball_dy <= -ball_dy -1;  
+                                else 
+                                    ball_dy <= -ball_dy +1;
+                                end if;
+                                hit_counter <= hit_counter + 1;
+                           elsif ((ball_row >= pad2_top + 9) and (ball_row < pad2_bot)) then 
+                                ball_col <= ball_col - 1;
+                                ball_dx <= to_signed(-1, 4);
+                                if (ball_dy < 0) then 
+                                        ball_dy <= -ball_dy + 1;
+                                else 
+                                        ball_dy <= ball_dy + 1;
+                                end if;
+                                hit_counter <= hit_counter + 1;
+                           else
+                                ball_col <= ball_col + to_integer(ball_dx);
+                                ball_row <= ball_row + to_integer(ball_dy);
+                           end if;
+                       end if; 
+                  elsif (ball_col = 0) then 
+                        ball_row <= to_unsigned(30, 6);
+                        ball_col <= to_unsigned(40, 7);
+                        ball_dx <= to_signed(1,4);
+                        score2 <= '1';
+                  elsif (ball_col = 79) then 
+                        ball_row <= to_unsigned(30, 6);
+                        ball_col <= to_unsigned(40, 7);
+                        ball_dx <= to_signed(-1,4);
+                        score1 <= '1';                        
+                  elsif (ball_row = 58) then 
+                        ball_row <= ball_row - 1;
+                        ball_dy <= to_signed(-1, 4);
+                        ball_col <= ball_col + to_integer(ball_dx);
+                  elsif (ball_row = 0) then 
+                        ball_row <= ball_row + 1;
+                        ball_dy <= to_signed(1, 4);
+                        ball_col <= ball_col + to_integer(ball_dx); 
+                  else 
+                        ball_row <= ball_row + to_integer(ball_dy);
+                        ball_col <= ball_col + to_integer(ball_dx);
+                  end if; 
+           else 
+               if ((ball_col = 1) or (ball_col = 78)) then --1, 78
+                    if (ball_col = 1) then 
+                        if ((ball_row >= pad1_top) and (ball_row < pad1_top + 3)) then  -- make sure u adjust to 12 
+                                y_count <= b"0000";
+                                ball_col <= ball_col + 1;
+                                ball_dx <= to_signed(1,4);
+                                if (ball_dy < 0) then 
+                                    if ((ball_dy - 1) < -4) then 
+                                        ball_dy <= to_signed(-4,4);
+                                        y_thresh <= to_signed(4,4);
+                                        y_change <= to_signed(-1,4);
+                                    else
+                                        ball_dy <= ball_dy -1;
+                                        y_thresh <= abs(ball_dy - 1);
+                                        y_change <= to_signed(-1,4);
+                                        
+                                    end if;
+                                else  
+                                    if ((-ball_dy - 1) < -4) then
+                                        ball_dy <= to_signed(-4,4);
+                                        y_thresh <= to_signed(4,4);
+                                        y_change <= to_signed(-1,4);
+                                        
+                                    else 
+                                        ball_dy <= -ball_dy -1;
+                                        y_thresh <= abs(-ball_dy -1);
+                                        y_change <= to_signed(-1,4);
+                                   end if;
+                                end if;
+                                hit_counter <= hit_counter + 1;
+                           elsif ((ball_row >= pad1_top +3) and (ball_row <pad1_top +9)) then 
+                                y_count <= b"0000";
+                                ball_col <= ball_col + 1;
+                                ball_dx <= to_signed(1, 4);
+                                if (ball_dy < 0) then 
+                                    ball_dy <= ball_dy  + 1;  
+                                    y_thresh <= abs(ball_dy + 1);
+                                    y_change <= to_signed(-1,4);
+                                else 
+                                    ball_dy <= ball_dy -1;
+                                    y_thresh <= ball_dy - 1;
+                                    y_change <= to_signed(1,4);
+                                end if;
+                                hit_counter <= hit_counter + 1;
+                           elsif ((ball_row >= pad1_top + 9) and (ball_row < pad1_bot)) then 
+                                y_count <= b"0000";
+                                ball_col <= ball_col + 1;
+                                ball_dx <= to_signed(1, 4);
+                                if (ball_dy < 0) then 
+                                    if (-ball_dy + 1 > 4) then 
+                                        ball_dy <= to_signed(4,4);
+                                        y_thresh <= to_signed(4,4);
+                                        y_change <= to_signed(1,4);
+                                    else 
+                                        ball_dy <= -ball_dy + 1;
+                                        y_thresh <= -ball_dy + 1;
+                                        y_change <= to_signed(1, 4);
+                                    end if;
+                                elsif (ball_dy > 0) then 
+                                    if (ball_dy + 1 > 4) then 
+                                        ball_dy <= to_signed(4,4);
+                                        y_thresh <= to_signed(4,4);
+                                        y_change <= to_signed(1,4);
+                                    else
+                                        ball_dy <= ball_dy + 1;
+                                        y_thresh <= ball_dy + 1;
+                                        y_change <= to_signed(1,4);
+                                    end if;
+                                else
+                                    ball_dy <= to_signed(1,4);
+                                    y_thresh <= to_signed(1,4);
+                                    y_change <= to_signed(1,4);
+                               end if;
+                                hit_counter <= hit_counter + 1;
+                           else
+                                if (y_count < unsigned(y_thresh)) then 
+                                    ball_row <= ball_row + to_integer(y_change);
+                                    y_count <= y_count + 1;
+                                else 
+                                    y_count <= b"0000";
+                                    ball_col <= ball_col + to_integer(ball_dx);
+                                end if;        
+                           end if;
+                    elsif (ball_col = 78) then 
+                        if ((ball_row >= pad2_top) and (ball_row < pad2_top + 3)) then  -- make sure u adjust to 12 
+                                y_count <= b"0000";
+                                ball_col <= ball_col - 1;
+                                ball_dx <= to_signed(-1,4);
+                                if (ball_dy < 0) then 
+                                    if ((ball_dy - 1) < -4) then 
+                                        ball_dy <= to_signed(-4,4);
+                                        y_thresh <= to_signed(4,4);
+                                        y_change <= to_signed(-1,4);
+                                    else
+                                        ball_dy <= ball_dy -1;
+                                        y_thresh <= abs(ball_dy - 1);
+                                        y_change <= to_signed(-1,4);
+                                        
+                                    end if;
+                                else  
+                                    if ((-ball_dy - 1) < -4) then
+                                        ball_dy <= to_signed(-4,4);
+                                        y_thresh <= to_signed(4,4);
+                                        y_change <= to_signed(-1,4);
+                                        
+                                    else 
+                                        ball_dy <= -ball_dy -1;
+                                        y_thresh <= abs(-ball_dy -1);
+                                        y_change <= to_signed(-1,4);
+                                   end if;
+                                end if;
+                                hit_counter <= hit_counter + 1;
+                           elsif ((ball_row >= pad2_top +3) and (ball_row <pad2_top +9)) then 
+                                y_count <= b"0000";
+                                ball_col <= ball_col - 1;
+                                ball_dx <= to_signed(-1, 4);
+                                if (ball_dy < 0) then 
+                                    ball_dy <= ball_dy +1;  
+                                    y_thresh <= abs(ball_dy + 1);
+                                    y_change <= to_signed(-1,4);
+                                else 
+                                    ball_dy <= ball_dy -1;
+                                    y_thresh <= ball_dy - 1;
+                                    y_change <= to_signed(1,4);
+                                end if;
+                                hit_counter <= hit_counter + 1;
+                           elsif ((ball_row >= pad2_top + 9) and (ball_row < pad2_bot)) then 
+                                y_count <= b"0000";
+                                ball_col <= ball_col - 1;
+                                ball_dx <= to_signed(-1, 4);
+                                if (ball_dy < 0) then 
+                                    if (-ball_dy + 1 > 4) then 
+                                        ball_dy <= to_signed(4,4);
+                                        y_thresh <= to_signed(4,4);
+                                        y_change <= to_signed(1,4);
+                                    else 
+                                        ball_dy <= -ball_dy + 1;
+                                        y_thresh <= -ball_dy + 1;
+                                        y_change <= to_signed(1, 4);
+                                    end if;
+                                elsif (ball_dy > 0) then 
+                                    if (ball_dy + 1 > 4) then 
+                                        ball_dy <= to_signed(4,4);
+                                        y_thresh <= to_signed(4,4);
+                                        y_change <= to_signed(1,4);
+                                    else
+                                        ball_dy <= ball_dy + 1;
+                                        y_thresh <= ball_dy + 1;
+                                        y_change <= to_signed(1,4);
+                                    end if;
+                                else
+                                    ball_dy <= to_signed(1,4);
+                                    y_thresh <= to_signed(1,4);
+                                    y_change <= to_signed(1,4);
+                               end if;
+                                hit_counter <= hit_counter + 1;
+                           else
+                                if (y_count < unsigned(y_thresh)) then 
+                                    ball_row <= ball_row + to_integer(y_change);
+                                    y_count <= y_count + 1;
+                                else 
+                                    y_count <= b"0000";
+                                    ball_col <= ball_col + to_integer(ball_dx);
+                                end if;        
+                           end if;
+                       end if;
+                  elsif (ball_col = 0) then 
+                        ball_row <= to_unsigned(30, 6);
+                        ball_col <= to_unsigned(40, 7);
+                        ball_dx <= to_signed(1,4);
+                        ball_dy <= y_change;
+                        y_count <= b"0000";
+                        score2 <= '1';
+                  elsif (ball_col = 79) then 
+                        ball_row <= to_unsigned(30, 6);
+                        ball_col <= to_unsigned(40, 7);
+                        ball_dx <= to_signed(-1,4);
+                        ball_dy <= y_change;
+                        y_count <= b"0000";
+                        score1 <= '1';                        
+                  elsif (ball_row = 58) then 
+                        ball_col <= ball_col + to_integer(ball_dx);
+                        ball_row <= ball_row - 1;
+                        y_change <= -y_change;
+                        ball_dy <= -ball_dy;
+                        y_count <= b"0000";
+                  elsif (ball_row = 0) then 
+                        ball_col <= ball_col + to_integer(ball_dx);
+                        ball_row <= ball_row + 1;
+                        ball_dy <= -ball_dy;
+                        y_change <= -y_change;
+                        y_count <= b"0000";
+                  else 
+                        if (y_count < unsigned(y_thresh)) then
+                            ball_row <= ball_row + to_integer(y_change);
+                            y_count <= y_count + 1;
+                         else 
+                            ball_col <= ball_col + to_integer(ball_dx);
+                            y_count <= b"0000";
+                         end if;
+                  end if; 
+                end if;                                      
+                end if;    
+                if (hit_counter = 2) then 
                     ballcnt <= b"000";
-                    if ((ball_dy = -1) or (ball_dy = 1)) then 
-                        if ((ball_dy < 0) and (ball_row >1)) then 
-                            ball_row <= ball_row - 1;
-                        elsif ((ball_dy > 0) and (ball_row < 58)) then 
-                            ball_row <= ball_row + 1;
-                        elsif (ball_row = 1) then
-                            ball_row <= ball_row + 1;
-                            ball_dy <= 1;
-                        elsif (ball_row = 58) then 
-                            ball_row <= ball_row -1;
-                            ball_dy <= -1;
-                        end if;
-                        if ((ball_col = 78) and (ball_row < pad2_bot) and (ball_row >= pad1_top)) then 
-                            ball_col <= ball_col - 1;
-                            ball_dx <= -1;
-                        elsif ((ball_col = 1) and (ball_row < pad1_bot) and (ball_row >= pad1_top)) then 
-                            ball_col <= ball_col +1;
-                            ball_dx <= 1;
-                        elsif ((ball_col < 79) and (ball_col > 0)) then                           
-                            ball_col <= ball_col + ball_dx;
-                        end if;
-                    elsif (y_count < y_thresh) then 
-                        if ((y_change < 0) and (ball_row >1)) then 
-                            ball_row <= ball_row - 1;
-                        elsif ((y_change > 0) and (ball_row < 58)) then 
-                            ball_row <= ball_row + 1;
-                        elsif (ball_row = 1) then
-                            ball_row <= ball_row + 1;
-                            y_change <= 1;
-                        elsif (ball_row = 58) then 
-                            ball_row <= ball_row -1;
-                            y_change <= -1;
-                        end if;
-                        y_count <= y_count + 1;                
-                    else 
-                        if ((ball_col = 78) and (ball_row < pad2_bot) and (ball_row >= pad1_top)) then 
-                            ball_col <= ball_col - 1;
-                            ball_dx <= -1;
-                        elsif ((ball_col = 1) and (ball_row < pad1_bot) and (ball_row >= pad1_top)) then 
-                            ball_col <= ball_col +1;
-                            ball_dx <= 1;
-                        elsif ((ball_col < 79) and (ball_col > 0)) then                           
-                            ball_col <= ball_col + ball_dx;
-                        end if;
-                        y_count <= to_unsigned(0,4);
+                    hit_counter <= to_unsigned(0,3);
+                    if (speed > 0) then 
+                        speed <= speed -1;
                     end if;
-               end if;
-               game <= addBall;
+                end if;  
+                game <= addBall;
+                rowcnt <= to_unsigned(1,6); --1,6
                when addPaddle =>
                     if (rowcnt < 59) then    --59
                             if ((rowcnt >= pad1_top) and (rowcnt < pad1_bot)) then
