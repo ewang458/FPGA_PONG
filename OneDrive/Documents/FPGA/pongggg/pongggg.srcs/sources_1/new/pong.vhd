@@ -225,28 +225,35 @@ begin
 	------------------------------------------------------------------
 	-- VGA output with blanking
 	------------------------------------------------------------------
-	red<=b"00" when blank='1' else pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount_d(9 downto 3))); --downto3
-	green<=b"00" when blank='1' else pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount_d(9 downto 3)));
-	blue<=b"00" when blank='1' else pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount_d(9 downto 3)));
-	
+	red<=b"00" when blank='1' else 
+	   pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount_d(9 downto 3))) 
+	   when ((hcount_d(9 downto 3) >= 0) and (hcount_d(9 downto 3) < 80) and (vcount(9 downto 3) >= 0) and (vcount(9 downto 3) < 60)) else "00"; --downto3
+	green<=b"00" when blank='1' else
+	   pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount_d(9 downto 3))) 
+	   when ((hcount_d(9 downto 3) >= 0) and (hcount_d(9 downto 3) < 80) and (vcount(9 downto 3) >= 0) and (vcount(9 downto 3) < 60)) else "00";
+	blue<=b"00" when blank='1' else 
+	   pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount_d(9 downto 3))) 
+	   when ((hcount_d(9 downto 3) >= 0) and (hcount_d(9 downto 3) < 80) and (vcount(9 downto 3) >= 0) and (vcount(9 downto 3) < 60)) else "00";
+	--OUTPUT TO VGA (SCALE DOWN PONG_BG ARRAY BY DIVIDING BY 8, and ensure hcount within blanking range)
 	process(clkfx) 
 	begin 
 	   if (rising_edge(clkfx)) then 
-	       hcount_d <= hcount;
+	       hcount_d <= hcount; -- shift register to shift horiztonal display one pixel while we wait for condiiton
 	   end if;
 	end process;
     
     process(clkfx)
     variable ball_y:integer;
     begin
-    if (reset = '1') then
+    if (reset = '1') then 
+        --reset ball position and paddles (SCORE TOO) 
         ball_row <= to_unsigned(30,6);
         ball_col <= to_unsigned(40,7);
         pad1_top <= to_unsigned(23,6);
         pad1_bot <= to_unsigned(35,6);
         pad2_top <= to_unsigned(23,6);
         pad2_bot <= to_unsigned(35,6);
-        --ball_row <= to_unsigned(15,5);
+        --ball_row <= to_unsigned(15,5); --values for scaled down IGNORE
         --ball_col <= to_unsigned(20,6);
         --pad1_top <= to_unsigned(11,5);
         --pad1_bot <= to_unsigned(17,5);
@@ -256,7 +263,6 @@ begin
         ball_dy <= to_signed(1,4);
         score1 <= '0';
         score2 <= '0';
-        xcount <= '0';
         speed <= to_unsigned(4,3);
         ballcnt <= to_unsigned(0,3);
         hit_counter <= to_unsigned(0,3);
@@ -264,11 +270,11 @@ begin
         colcnt <= to_unsigned(0,7);
         --rowcnt <= to_unsigned(0,5);
         --colcnt <= to_unsigned(0,6);
-        game <= startFrame;
+        game <= startFrame; -- got to smalleer frame 
         
     elsif (rising_edge(clkfx)) then
         case (game) is --add game start and game end states and reset capabilty 
-            when startFrame => 
+            when startFrame =>  --draw game screen before start button state
                 ball_row <= to_unsigned(30,6);
                 ball_col <= to_unsigned(40, 7);
                 if (rowcnt < 60) then 
@@ -299,19 +305,19 @@ begin
                     rowcnt <= to_unsigned(0,6);
                     game <= startGame;
                 end if;                      
-            when startGame =>
+            when startGame => --wait for start button to be pushed, reset vlaues 
                 hit_counter <= to_unsigned(0,3);
                 speed <= to_unsigned(4,3);
-                score1 <= '0';
+                score1 <= '0'; --reset score flags here for now, may have to be dealt with differently when score added
                 score2 <= '0';
                 if (start = '1') then 
-                    game <= idle;
+                    game <= idle; --go to idle state and start game 
                 end if;
             when idle => 
-                if (frame = '1') then 
+                if (frame = '1') then  --when vga enters blank period we start updating array
                     game <= initialize;
                 end if;
-            when initialize => 
+            when initialize =>  --draw original backfround screen ( no paddle or ball)
                 -- score here 
                 --60, 39, 40
                 if (rowcnt < 60) then
@@ -329,7 +335,7 @@ begin
                         game <= updatePaddle;
                     end if;
                 end if;  
-            when updatePaddle =>
+            when updatePaddle => --add paddle on screen, move with buttons
                 if (up_1 = '1')then
                    if (pad1_top > 1) then 
                        pad1_top <= pad1_top - 1;
@@ -353,167 +359,173 @@ begin
                    end if;
                 end if; 
                 game <= updateBall; -- add update score state
-            when updateBall =>      -- if in update score block then only set to 1 if ball, no setting to zero otherwise          
-                if (ballcnt < speed) then 
+            when updateBall =>    --holy hell of ball position updated  -- if in update score block then only set to 1 if ball, no setting to zero otherwise          
+                if (ballcnt < speed) then  --counter for changing ball speed
                     ballcnt <= ballcnt + 1;
                 else 
-                ballcnt <= b"000";
-                if (abs(ball_dy) = 1) then 
-                    y_count <= b"0000";
-                    if ((ball_col = 1) or (ball_col = 78)) then --1, 78
-                        if (ball_col = 1) then 
-                            if ((ball_row >= pad1_top) and (ball_row < pad1_top + 3)) then  -- make sure u adjust to 12 
-                                ball_col <= ball_col + 1;
-                                ball_dx <= to_signed(1,4);
-                                if (ball_dy < 0) then 
+                ballcnt <= b"000"; --reset counter
+                if (abs(ball_dy) = 1) then -- if  y ball speed is 1 then we do diagonal movement 
+                    y_count <= b"0000"; --reset y counter for L movement 
+                    if ((ball_col = 1) or (ball_col = 78)) then --if ball in paddle range
+                        if (ball_col = 1) then  -- if on left side 
+                            if ((ball_row >= pad1_top) and (ball_row < pad1_top + 3)) then  -- if on top 3 pixels on paddle hit
+                                ball_col <= ball_col + 1; --change x valueand velcoity
+                                ball_dx <= to_signed(1,4); 
+                                if (ball_dy < 0) then  --if ball was moving up, increase angle and keep moving up
                                         ball_dy <= ball_dy -1;
                                         y_thresh <= abs(ball_dy - 1);
                                         y_change <= to_signed(-1,4);
-                                else  
+                                else   --if ball was moving down, increase angle and now move up 
                                         ball_dy <= -ball_dy -1;
                                         y_thresh <= abs(-ball_dy -1);
                                         y_change <= to_signed(-1,4);
                                 end if;
-                                hit_counter <= hit_counter + 1;
-                           elsif ((ball_row >= pad1_top +3) and (ball_row <pad1_top +9)) then 
+                                hit_counter <= hit_counter + 1; -- keep track of paddle hits
+                           elsif ((ball_row >= pad1_top +3) and (ball_row <pad1_top +9)) then --if ball is in middle, decrease angle here
                                 ball_col <= ball_col + 1;
                                 ball_dx <= to_signed(1, 4);
-                                ball_dy <= to_signed(0,4);
+                                ball_dy <= to_signed(0,4); --when y is 1 or -1 can only go to 0 horizontal movement 
                                 y_thresh <= to_signed(0,4);
                                 y_change <= to_signed(0,4);
                                 hit_counter <= hit_counter + 1;
-                           elsif ((ball_row >= pad1_top + 9) and (ball_row < pad1_bot)) then 
+                           elsif ((ball_row >= pad1_top + 9) and (ball_row < pad1_bot)) then --if bottom section of paddle
                                 ball_col <= ball_col + 1;
                                 ball_dx <= to_signed(1, 4);
-                                if (ball_dy < 0) then 
+                                if (ball_dy < 0) then --if ball was moving up, make it go down now increase angle
                                         ball_dy <= -ball_dy + 1;
                                         y_thresh <= -ball_dy + 1;
                                         y_change <= to_signed(1, 4);
-                                else
+                                else -- if ball was moving down, keep direction and increase angle 
                                         ball_dy <= ball_dy + 1;
                                         y_thresh <= ball_dy + 1;
                                         y_change <= to_signed(1,4);
                                end if;
                                 hit_counter <= hit_counter + 1;
-                           else
+                           else --if not hitting paddle, continue in direction 
                                 ball_col <= ball_col + to_integer(ball_dx);
                                 ball_row <= ball_row + to_integer(ball_dy);
                            end if;
                    elsif (ball_col = 78) then 
-                            if ((ball_row >= pad2_top) and (ball_row < pad2_top + 3)) then  -- make sure u adjust to 12 
+                            if ((ball_row >= pad2_top) and (ball_row < pad2_top + 3)) then  -- ball hits top section of paddle 2
                                 ball_col <= ball_col - 1;
                                 ball_dx <= to_signed(-1,4);
-                                if (ball_dy < 0) then 
+                                if (ball_dy < 0) then  --if ball was moving up, keep moving up and icnrease angle
                                         ball_dy <= ball_dy -1;
-                                else  
+                                        y_thresh <= abs(ball_dy -1);
+                                        y_change <= to_signed(-1,4);
+                                else  --if ball was moving down, make it move up and then increase angle
                                         ball_dy <= -ball_dy -1;
+                                        y_thresh <= abs(-ball_dy -1);
+                                        y_change <= to_signed(-1, 4);
                                 end if;
                                 hit_counter <= hit_counter + 1;
-                           elsif ((ball_row >= pad2_top +3) and (ball_row <pad2_top +9)) then 
-                                ball_col <= ball_col - 1;
-                                ball_dx <= to_signed(-1, 4);
-                                if (ball_dy < 0) then 
-                                    ball_dy <= -ball_dy -1;  
-                                else 
-                                    ball_dy <= -ball_dy +1;
-                                end if;
+                           elsif ((ball_row >= pad2_top +3) and (ball_row <pad2_top +9)) then --middle paddle hit, decrease angle
+                                ball_col <= ball_col + 1; 
+                                ball_dx <= to_signed(1, 4);
+                                ball_dy <= to_signed(0,4); -- can only go to 0 when at 1 
+                                y_thresh <= to_signed(0,4);
+                                y_change <= to_signed(0,4);
                                 hit_counter <= hit_counter + 1;
-                           elsif ((ball_row >= pad2_top + 9) and (ball_row < pad2_bot)) then 
+                           elsif ((ball_row >= pad2_top + 9) and (ball_row < pad2_bot)) then --if at bottom of paddle increase angle
                                 ball_col <= ball_col - 1;
                                 ball_dx <= to_signed(-1, 4);
-                                if (ball_dy < 0) then 
+                                if (ball_dy < 0) then --if ball was moving up then switch direction and increase angle
                                         ball_dy <= -ball_dy + 1;
-                                else 
+                                        y_thresh <= -ball_dy + 1;
+                                        y_change <= to_signed(1, 4);
+                                else  -- if was moving down then keep that nad increase angle
                                         ball_dy <= ball_dy + 1;
+                                        y_thresh <= ball_dy + 1;
+                                        y_change <= to_signed(1,4);
                                 end if;
                                 hit_counter <= hit_counter + 1;
-                           else
+                           else --if doesn't hit paddle, increase as normal 
                                 ball_col <= ball_col + to_integer(ball_dx);
                                 ball_row <= ball_row + to_integer(ball_dy);
                            end if;
                        end if; 
-                  elsif (ball_col = 0) then 
-                        ball_row <= to_unsigned(30, 6);
+                  elsif (ball_col = 0) then --if ball hits left side of screen (player 2 score)
+                        ball_row <= to_unsigned(30, 6); --move ball to middle line ( hide, off screen)
                         ball_col <= to_unsigned(40, 7);
-                        ball_dx <= to_signed(1,4);
-                        score2 <= '1';
-                  elsif (ball_col = 79) then 
-                        ball_row <= to_unsigned(30, 6);
+                        ball_dx <= to_signed(1,4); --set x velcoity so that it si a serve from player 1
+                        score2 <= '1'; --player 2 score
+                  elsif (ball_col = 79) then  --if ball hits right side of screen ( player 1 score)
+                        ball_row <= to_unsigned(30, 6); -- move ball to middle line 
                         ball_col <= to_unsigned(40, 7);
-                        ball_dx <= to_signed(-1,4);
+                        ball_dx <= to_signed(-1,4); --plater 2 serves 
                         score1 <= '1';                        
-                  elsif (ball_row = 58) then 
+                  elsif (ball_row = 58) then --if hits bottom of screen, bounce 
                         ball_row <= ball_row - 1;
                         ball_dy <= to_signed(-1, 4);
                         ball_col <= ball_col + to_integer(ball_dx);
-                  elsif (ball_row = 0) then 
+                  elsif (ball_row = 0) then  --if hits top of screen bounce 
                         ball_row <= ball_row + 1;
                         ball_dy <= to_signed(1, 4);
                         ball_col <= ball_col + to_integer(ball_dx); 
-                  else 
+                  else  -- otherwise move diagonally 
                         ball_row <= ball_row + to_integer(ball_dy);
                         ball_col <= ball_col + to_integer(ball_dx);
                   end if; 
-           else 
-               if ((ball_col = 1) or (ball_col = 78)) then --1, 78
-                    if (ball_col = 1) then 
-                        if ((ball_row >= pad1_top) and (ball_row < pad1_top + 3)) then  -- make sure u adjust to 12 
-                                y_count <= b"0000";
-                                ball_col <= ball_col + 1;
+           else  -- if y velcoity is not equal to 1
+               if ((ball_col = 1) or (ball_col = 78)) then --hitting paddles 
+                    if (ball_col = 1) then -- if hits player 1 paddle 
+                        if ((ball_row >= pad1_top) and (ball_row < pad1_top + 3)) then  -- hits top section of paddle
+                                y_count <= b"0000"; --set counter down to 0
+                                ball_col <= ball_col + 1; -- move away from paddle so that we don't have weird logic 
                                 ball_dx <= to_signed(1,4);
-                                if (ball_dy < 0) then 
-                                    if ((ball_dy - 1) < -4) then 
+                                if (ball_dy < 0) then --if ball is  moving up then keep moving up and then increase angle
+                                    if ((ball_dy - 1) < -4) then --cap angle at y =4
                                         ball_dy <= to_signed(-4,4);
                                         y_thresh <= to_signed(4,4);
                                         y_change <= to_signed(-1,4);
-                                    else
+                                    else  
                                         ball_dy <= ball_dy -1;
                                         y_thresh <= abs(ball_dy - 1);
                                         y_change <= to_signed(-1,4);
                                         
                                     end if;
-                                else  
-                                    if ((-ball_dy - 1) < -4) then
+                                else  --if was going down make it go up and increase angle 
+                                    if ((-ball_dy - 1) < -4) then --cap angle at y = 4 
                                         ball_dy <= to_signed(-4,4);
                                         y_thresh <= to_signed(4,4);
                                         y_change <= to_signed(-1,4);
                                         
-                                    else 
+                                    else --if was going up keep up increaes angle 
                                         ball_dy <= -ball_dy -1;
                                         y_thresh <= abs(-ball_dy -1);
                                         y_change <= to_signed(-1,4);
                                    end if;
                                 end if;
                                 hit_counter <= hit_counter + 1;
-                           elsif ((ball_row >= pad1_top +3) and (ball_row <pad1_top +9)) then 
-                                y_count <= b"0000";
+                           elsif ((ball_row >= pad1_top +3) and (ball_row <pad1_top +9)) then --if middle paddle
+                                y_count <= b"0000"; --reset counter 
                                 ball_col <= ball_col + 1;
-                                ball_dx <= to_signed(1, 4);
-                                if (ball_dy < 0) then 
+                                ball_dx <= to_signed(1, 4); 
+                                if (ball_dy < 0) then --decrease angle
                                     ball_dy <= ball_dy  + 1;  
                                     y_thresh <= abs(ball_dy + 1);
                                     y_change <= to_signed(-1,4);
-                                else 
+                                else --if angle was 0 then move downwards, otherwise decreasing angle for moving down
                                     ball_dy <= ball_dy -1;
                                     y_thresh <= ball_dy - 1;
                                     y_change <= to_signed(1,4);
                                 end if;
                                 hit_counter <= hit_counter + 1;
-                           elsif ((ball_row >= pad1_top + 9) and (ball_row < pad1_bot)) then 
+                           elsif ((ball_row >= pad1_top + 9) and (ball_row < pad1_bot)) then --if on bottom of paddle 
                                 y_count <= b"0000";
                                 ball_col <= ball_col + 1;
                                 ball_dx <= to_signed(1, 4);
-                                if (ball_dy < 0) then 
+                                if (ball_dy < 0) then -- if ball was moving up then increase angle keep moving up
                                     if (-ball_dy + 1 > 4) then 
-                                        ball_dy <= to_signed(4,4);
+                                        ball_dy <= to_signed(4,4); --cap y at 4
                                         y_thresh <= to_signed(4,4);
                                         y_change <= to_signed(1,4);
-                                    else 
-                                        ball_dy <= -ball_dy + 1;
+                                    else  -- if ball was moving down then move up and increaes angle 
+                                        ball_dy <= -ball_dy + 1; 
                                         y_thresh <= -ball_dy + 1;
                                         y_change <= to_signed(1, 4);
                                     end if;
-                                elsif (ball_dy > 0) then 
+                                elsif (ball_dy > 0) then --if ball was moving down then keep and increase angle
                                     if (ball_dy + 1 > 4) then 
                                         ball_dy <= to_signed(4,4);
                                         y_thresh <= to_signed(4,4);
@@ -523,13 +535,13 @@ begin
                                         y_thresh <= ball_dy + 1;
                                         y_change <= to_signed(1,4);
                                     end if;
-                                else
+                                else -- if ball was zero move it down 
                                     ball_dy <= to_signed(1,4);
                                     y_thresh <= to_signed(1,4);
                                     y_change <= to_signed(1,4);
                                end if;
                                 hit_counter <= hit_counter + 1;
-                           else
+                           else --if not hit paddle keep mvoing as planned
                                 if (y_count < unsigned(y_thresh)) then 
                                     ball_row <= ball_row + to_integer(y_change);
                                     y_count <= y_count + 1;
@@ -538,7 +550,7 @@ begin
                                     ball_col <= ball_col + to_integer(ball_dx);
                                 end if;        
                            end if;
-                    elsif (ball_col = 78) then 
+                    elsif (ball_col = 78) then  -- ITS THE SAME LOGIC FOR PADDLE 2 JUST LOOK AT PADDLE 1 COMMENTS 
                         if ((ball_row >= pad2_top) and (ball_row < pad2_top + 3)) then  -- make sure u adjust to 12 
                                 y_count <= b"0000";
                                 ball_col <= ball_col - 1;
@@ -621,7 +633,7 @@ begin
                                 end if;        
                            end if;
                        end if;
-                  elsif (ball_col = 0) then 
+                  elsif (ball_col = 0) then  -- if ball is at edges increment score and say person scored 
                         ball_row <= to_unsigned(30, 6);
                         ball_col <= to_unsigned(40, 7);
                         ball_dx <= to_signed(1,4);
@@ -635,7 +647,7 @@ begin
                         ball_dy <= y_change;
                         y_count <= b"0000";
                         score1 <= '1';                        
-                  elsif (ball_row = 58) then 
+                  elsif (ball_row = 58) then  -- bounce if at top and bottom 
                         ball_col <= ball_col + to_integer(ball_dx);
                         ball_row <= ball_row - 1;
                         y_change <= -y_change;
@@ -647,7 +659,7 @@ begin
                         ball_dy <= -ball_dy;
                         y_change <= -y_change;
                         y_count <= b"0000";
-                  else 
+                  else  --otherwise move as normal 
                         if (y_count < unsigned(y_thresh)) then
                             ball_row <= ball_row + to_integer(y_change);
                             y_count <= y_count + 1;
@@ -658,28 +670,28 @@ begin
                   end if; 
                 end if;                                      
                 end if;    
-                if (hit_counter = 2) then 
+                if (hit_counter = 2) then --if 2 hits then increase speed
                     ballcnt <= b"000";
                     hit_counter <= to_unsigned(0,3);
-                    if (speed > 0) then 
+                    if (speed > 1) then 
                         speed <= speed -1;
                     end if;
                 end if;  
                 game <= addBall;
                 rowcnt <= to_unsigned(1,6); --1,6
                when addPaddle =>
-                    if (rowcnt < 59) then    --59
-                            if ((rowcnt >= pad1_top) and (rowcnt < pad1_bot)) then
+                    if (rowcnt < 59) then    
+                            if ((rowcnt >= pad1_top) and (rowcnt < pad1_bot)) then --draw paddle 1
                                 pong_bg(to_integer(rowcnt), 0) <= b"11";
                             else
-                                if (ball_col /= 0) then 
+                                if (ball_col /= 0) then  --erase old paddles entirely 
                                     pong_bg(to_integer(rowcnt), 0) <= b"00";
                                 else 
-                                    if (ball_row /= rowcnt) then
+                                    if (ball_row /= rowcnt) then --if ball is in the paddle row make sure you don't erase that
                                         pong_bg(to_integer(rowcnt), 0) <= b"00";
                                     end if;
                                 end if;
-                            end if;
+                            end if; -- do the same thing 
                             if ((rowcnt >= pad2_top) and (rowcnt < pad2_bot)) then 
                                 pong_bg(to_integer(rowcnt), 79) <= b"11"; --79
                             else 
@@ -692,27 +704,28 @@ begin
                                 end if;
                             end if;
                             rowcnt <= rowcnt + 1;
-                   else 
-                        if ((score1 = '1') or (score2 = '1')) then 
+                   else --after this go to startGame and wait for start button again if score occured
+                        if ((score1 = '1') or (score2 = '1')) then
+                            --this is probably where we can include a flag for score to actually update!! 
                             game <= startGame;
-                            if (score1 = '1') then 
+                            if (score1 = '1') then --get ball ready for movement 
                                 ball_col <= to_unsigned(76, 7);--76,7
-                            else 
+                            else  --get ball ready fro movement 
                                 ball_col <= to_unsigned(3, 7); --3, 7
                             end if;      
                         else 
-                            game <= idle;
+                            game <= idle; --otherwise keep moving throuhg, wiat for next frame
                         end if;
                         rowcnt <= to_unsigned(0,6); --6
                         colcnt <= to_unsigned(0,7);--7
                     end if;
                when addBall =>
-                    if (rowcnt < 59) then  --59
+                    if (rowcnt < 59) then  --59 --add ball to position 
                         if (colcnt < 80) then --80
-                            if (ball_row = rowcnt) and (ball_col = colcnt) then
+                            if (ball_row = rowcnt) and (ball_col = colcnt) then --add new ball
                                 pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= b"11";
                             else 
-                                if (colcnt /= 39) and (colcnt /=40)  then --39, 40
+                                if (colcnt /= 39) and (colcnt /=40)  then --39, 40 --erase prev ball ( don't erase middle line)
                                   pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= b"00";
                                 end if;
                            end if;
