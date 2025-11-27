@@ -82,7 +82,7 @@ end component;
 	signal down_2: std_logic;
 	signal rst: std_logic;
 	signal h_count_d: unsigned(9 downto 0);
-	type bg is array(59 downto 0,79  downto 0) of std_logic_vector(1 downto 0);
+	type bg is array(59 downto 0,79  downto 0) of std_logic;
 	--type bg is array(29 downto 0,39  downto 0) of std_logic_vector(1 downto 0);
 	signal pong_bg: bg;
 	signal xcount: std_logic := '0';
@@ -267,17 +267,17 @@ begin
 	-- VGA output with blanking
 	------------------------------------------------------------------
 	red<=b"00" when blank='1' else 
-	   b"11" when (char_pixel_left = '1' or char_pixel_right = '1') else
-	   pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount_d(9 downto 3))) 
-	   when ((hcount_d(9 downto 3) >= 0) and (hcount_d(9 downto 3) < 80) and (vcount(9 downto 3) >= 0) and (vcount(9 downto 3) < 60)) else "00"; --downto 3
-	green<=b"00" when blank='1' else
-	   b"11" when (char_pixel_left = '1' or char_pixel_right = '1') else
-	   pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount_d(9 downto 3))) 
-	   when ((hcount_d(9 downto 3) >= 0) and (hcount_d(9 downto 3) < 80) and (vcount(9 downto 3) >= 0) and (vcount(9 downto 3) < 60)) else "00";
+       b"11" when (char_pixel_left = '1' or char_pixel_right = '1') else
+       b"11" when (pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount(9 downto 3))) = '1') else
+       b"00";
+	green<=b"00" when blank='1' else 
+       b"11" when (char_pixel_left = '1' or char_pixel_right = '1') else
+       b"11" when (pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount(9 downto 3))) = '1') else
+       b"00";
 	blue<=b"00" when blank='1' else 
-	   b"11" when (char_pixel_left = '1' or char_pixel_right = '1') else
-	   pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount_d(9 downto 3))) 
-	   when ((hcount_d(9 downto 3) >= 0) and (hcount_d(9 downto 3) < 80) and (vcount(9 downto 3) >= 0) and (vcount(9 downto 3) < 60)) else "00";
+       b"11" when (char_pixel_left = '1' or char_pixel_right = '1') else
+       b"11" when (pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount(9 downto 3))) = '1') else
+       b"00";
 	--OUTPUT TO VGA (SCALE DOWN PONG_BG ARRAY BY DIVIDING BY 8, and ensure hcount within blanking range)
 	process(clkfx) 
 	begin 
@@ -334,20 +334,20 @@ begin
                     if (colcnt < 80) then 
                         if ((colcnt = 0) or (colcnt = 79)) then 
                             if ((rowcnt >= pad1_top) and (rowcnt < pad1_bot)) then 
-                                pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= b"11";
+                                pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= '1';
                             else
                                 if ((rowcnt > 0) and (rowcnt < 59)) then
-                                    pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= b"00";
+                                    pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= '0';
                                 elsif ((rowcnt = 0) or (rowcnt = 59)) then 
-                                    pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= b"11";
+                                    pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= '1';
                                 end if;
                             end if;
                         elsif ((colcnt = 39) or (colcnt = 40)) then 
-                            pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= b"11";
+                            pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= '1';
                         elsif ((rowcnt = 0) or (rowcnt = 59)) then 
-                            pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= b"11";
+                            pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= '1';
                         else                     
-                            pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= b"00";
+                            pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= '0';
                         end if;
                         colcnt <= colcnt + 1;
                     else 
@@ -374,13 +374,13 @@ begin
                 -- score here 
                 --60, 39, 40
                 if (rowcnt < 60) then
-                    pong_bg(to_integer(rowcnt), 39) <= b"11";
-                    pong_bg(to_integer(rowcnt), 40) <= b"11";
+                    pong_bg(to_integer(rowcnt), 39) <= '1';
+                    pong_bg(to_integer(rowcnt), 40) <= '1';
                     rowcnt <= rowcnt + 1;
                 else --80, 0, 59
                     if (colcnt < 80) then 
-                        pong_bg(0, to_integer(colcnt)) <= b"11";
-                        pong_bg(59, to_integer(colcnt)) <= b"11";
+                        pong_bg(0, to_integer(colcnt)) <= '1';
+                        pong_bg(59, to_integer(colcnt)) <= '1';
                         colcnt <= colcnt + 1;
                     else --7, 6
                         colcnt <= to_unsigned(0,7);
@@ -735,24 +735,24 @@ begin
                when addPaddle =>
                     if (rowcnt < 59) then    
                             if ((rowcnt >= pad1_top) and (rowcnt < pad1_bot)) then --draw paddle 1
-                                pong_bg(to_integer(rowcnt), 0) <= b"11";
+                                pong_bg(to_integer(rowcnt), 0) <= '1';
                             else
                                 if (ball_col /= 0) then  --erase old paddles entirely 
-                                    pong_bg(to_integer(rowcnt), 0) <= b"00";
+                                    pong_bg(to_integer(rowcnt), 0) <= '0';
                                 else 
                                     if (ball_row /= rowcnt) then --if ball is in the paddle row make sure you don't erase that
-                                        pong_bg(to_integer(rowcnt), 0) <= b"00";
+                                        pong_bg(to_integer(rowcnt), 0) <= '0';
                                     end if;
                                 end if;
                             end if; -- do the same thing 
                             if ((rowcnt >= pad2_top) and (rowcnt < pad2_bot)) then 
-                                pong_bg(to_integer(rowcnt), 79) <= b"11"; --79
+                                pong_bg(to_integer(rowcnt), 79) <= '1'; --79
                             else 
                                 if (ball_col /= 79) then  --79
-                                    pong_bg(to_integer(rowcnt), 79) <= b"00"; --79
+                                    pong_bg(to_integer(rowcnt), 79) <= '0'; --79
                                 else
                                     if (ball_row /= rowcnt) then
-                                        pong_bg(to_integer(rowcnt), 79) <= b"00";--79
+                                        pong_bg(to_integer(rowcnt), 79) <= '0';--79
                                     end if;
                                 end if;
                             end if;
@@ -777,10 +777,10 @@ begin
                     if (rowcnt < 59) then  --59 --add ball to position 
                         if (colcnt < 80) then --80
                             if (ball_row = rowcnt) and (ball_col = colcnt) then --add new ball
-                                pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= b"11";
+                                pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= '1';
                             else 
                                 if (colcnt /= 39) and (colcnt /=40)  then --39, 40 --erase prev ball ( don't erase middle line)
-                                  pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= b"00";
+                                  pong_bg(to_integer(rowcnt), to_integer(colcnt)) <= '0';
                                 end if;
                            end if;
                            colcnt <= colcnt + 1;
