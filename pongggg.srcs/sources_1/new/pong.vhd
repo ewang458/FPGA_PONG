@@ -4,7 +4,7 @@ use IEEE.numeric_std.all;
 library UNISIM;
 use UNISIM.vcomponents.all;
 
-entity lab_f is
+entity pong is
 	port(
 		clk:   in    std_logic;
 		tx:    out   std_logic;
@@ -20,9 +20,9 @@ entity lab_f is
 		reset : in std_logic;
 		start :in std_logic
 	);
-end lab_f;
+end pong;
 
-architecture arch of lab_f is
+architecture arch of pong is
 
 component debounce 
     port(
@@ -30,7 +30,19 @@ component debounce
         btn: in std_logic;
         btn_out: out std_logic
         );
-end component;   
+end component;  
+component score
+    port(
+        clk: in std_logic;
+        score_flag  : in  std_logic;
+        identity : in std_logic;
+        hcount:   in unsigned(9 downto 0);
+        vcount:  in unsigned(9 downto 0);
+        char_pixel : out std_logic;
+        current_score : out integer range 0 to 20;
+        rst: in std_logic
+        );
+end component; 
 	signal clkfb:    std_logic;
 	signal clkfx:    std_logic;
 	signal hcount:   unsigned(9 downto 0);
@@ -60,8 +72,8 @@ end component;
 	--signal ball_row: unsigned(4 downto 0):= to_unsigned(15,5);
 	--signal ball_col: unsigned(5 downto 0) := to_unsigned(20,6);
 	signal ballcnt: unsigned(2 downto 0);
-	signal score1: std_logic:= '0';
-	signal score2: std_logic:= '0';
+	signal score1: std_logic := '0'; --left player
+	signal score2: std_logic := '0'; --right player
 	signal hit_counter: unsigned(2 downto 0);
 	signal speed: unsigned(2 downto 0) := to_unsigned(4,3);
 	signal up_1: std_logic;
@@ -78,6 +90,15 @@ end component;
 	signal colcnt : unsigned(6 downto 0) := (others => '0');
 	--signal rowcnt: unsigned(4 downto 0) := (others => '0');
 	--signal colcnt : unsigned(5 downto 0) := (others => '0');
+	--signals for scorekeeping:
+	signal score_left: integer range 0 to 11 := 0;
+    signal char_pixel_left: std_logic;
+    signal score_right: integer range 0 to 11 := 0;
+    signal char_pixel_right: std_logic;
+    signal score_flag: std_logic := '0';
+    signal left_id: std_logic := '0'; --left player identified by score.vhd with 0
+    signal right_id: std_logic := '1'; --right player identified by score.vhd with 1
+    signal reset_game: std_logic := '0'; --game reset caused by score reaching 11 instead of btn1 being pressed
 	type FSM is (startFrame, startGame, idle, initialize, updatePaddle, updateBall, moveBall, addPaddle, addBall);
 	signal game: FSM;
 
@@ -86,6 +107,26 @@ begin
     up2debounce: debounce port map(clk => clkfx, btn => up2, btn_out => up_2);
     down1debounce: debounce port map(clk => clkfx, btn => down1, btn_out => down_1);
     down2debounce: debounce port map(clk => clkfx, btn => down2, btn_out => down_2);
+    left_player: score port map(
+                clk => clkfx, 
+                score_flag => score1, 
+                identity => left_id, 
+                hcount => hcount, 
+                vcount => vcount, 
+                char_pixel => char_pixel_left, 
+                current_score => score_left,
+                rst => reset
+            );
+    right_player: score port map(
+                clk => clkfx, 
+                score_flag => score2, 
+                identity => right_id, 
+                hcount => hcount, 
+                vcount => vcount, 
+                char_pixel => char_pixel_right, 
+                current_score => score_right,
+                rst => reset
+            );
 	tx<='1';
 
 	------------------------------------------------------------------
@@ -226,12 +267,15 @@ begin
 	-- VGA output with blanking
 	------------------------------------------------------------------
 	red<=b"00" when blank='1' else 
+	   b"11" when (char_pixel_left = '1' or char_pixel_right = '1') else
 	   pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount_d(9 downto 3))) 
-	   when ((hcount_d(9 downto 3) >= 0) and (hcount_d(9 downto 3) < 80) and (vcount(9 downto 3) >= 0) and (vcount(9 downto 3) < 60)) else "00"; --downto3
+	   when ((hcount_d(9 downto 3) >= 0) and (hcount_d(9 downto 3) < 80) and (vcount(9 downto 3) >= 0) and (vcount(9 downto 3) < 60)) else "00"; --downto 3
 	green<=b"00" when blank='1' else
+	   b"11" when (char_pixel_left = '1' or char_pixel_right = '1') else
 	   pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount_d(9 downto 3))) 
 	   when ((hcount_d(9 downto 3) >= 0) and (hcount_d(9 downto 3) < 80) and (vcount(9 downto 3) >= 0) and (vcount(9 downto 3) < 60)) else "00";
 	blue<=b"00" when blank='1' else 
+	   b"11" when (char_pixel_left = '1' or char_pixel_right = '1') else
 	   pong_bg(to_integer(vcount(9 downto 3)), to_integer(hcount_d(9 downto 3))) 
 	   when ((hcount_d(9 downto 3) >= 0) and (hcount_d(9 downto 3) < 80) and (vcount(9 downto 3) >= 0) and (vcount(9 downto 3) < 60)) else "00";
 	--OUTPUT TO VGA (SCALE DOWN PONG_BG ARRAY BY DIVIDING BY 8, and ensure hcount within blanking range)
@@ -245,7 +289,8 @@ begin
     process(clkfx)
     variable ball_y:integer;
     begin
-    if (reset = '1') then 
+    score_flag <= '0';
+    if (reset = '1' or reset_game = '1') then 
         --reset ball position and paddles (SCORE TOO) 
         ball_row <= to_unsigned(30,6);
         ball_col <= to_unsigned(40,7);
@@ -270,9 +315,17 @@ begin
         colcnt <= to_unsigned(0,7);
         --rowcnt <= to_unsigned(0,5);
         --colcnt <= to_unsigned(0,6);
+        --score_left <= 0; --cannot reset score here, must be done within score module
+        --score_right <= 0;
+        reset_game <= '0'; --a 1 here will prompt score to reset internally on both players in score module
         game <= startFrame; -- got to smalleer frame 
         
     elsif (rising_edge(clkfx)) then
+        if (reset_game = '1' and game = startFrame) then
+            reset_game <= '0';
+        elsif (score_left = 11 or score_right = 11) then
+            reset_game <= '1';
+        end if;
         case (game) is --add game start and game end states and reset capabilty 
             when startFrame =>  --draw game screen before start button state
                 ball_row <= to_unsigned(30,6);
@@ -420,8 +473,8 @@ begin
                                 end if;
                                 hit_counter <= hit_counter + 1;
                            elsif ((ball_row >= pad2_top +3) and (ball_row <pad2_top +9)) then --middle paddle hit, decrease angle
-                                ball_col <= ball_col + 1; 
-                                ball_dx <= to_signed(1, 4);
+                                ball_col <= ball_col - 1; 
+                                ball_dx <= to_signed(-1, 4);
                                 ball_dy <= to_signed(0,4); -- can only go to 0 when at 1 
                                 y_thresh <= to_signed(0,4);
                                 y_change <= to_signed(0,4);
@@ -448,12 +501,12 @@ begin
                         ball_row <= to_unsigned(30, 6); --move ball to middle line ( hide, off screen)
                         ball_col <= to_unsigned(40, 7);
                         ball_dx <= to_signed(1,4); --set x velcoity so that it si a serve from player 1
-                        score2 <= '1'; --player 2 score
+                        score2 <= '1'; --player 2 (right) score
                   elsif (ball_col = 79) then  --if ball hits right side of screen ( player 1 score)
                         ball_row <= to_unsigned(30, 6); -- move ball to middle line 
                         ball_col <= to_unsigned(40, 7);
                         ball_dx <= to_signed(-1,4); --plater 2 serves 
-                        score1 <= '1';                        
+                        score1 <= '1';   --player 1 (left) score                     
                   elsif (ball_row = 58) then --if hits bottom of screen, bounce 
                         ball_row <= ball_row - 1;
                         ball_dy <= to_signed(-1, 4);
@@ -471,8 +524,8 @@ begin
                     if (ball_col = 1) then -- if hits player 1 paddle 
                         if ((ball_row >= pad1_top) and (ball_row < pad1_top + 3)) then  -- hits top section of paddle
                                 y_count <= b"0000"; --set counter down to 0
-                                ball_col <= ball_col + 1; -- move away from paddle so that we don't have weird logic 
-                                ball_dx <= to_signed(1,4);
+                                ball_col <= ball_col - 1; -- move away from paddle so that we don't have weird logic 
+                                ball_dx <= to_signed(-1,4);
                                 if (ball_dy < 0) then --if ball is  moving up then keep moving up and then increase angle
                                     if ((ball_dy - 1) < -4) then --cap angle at y =4
                                         ball_dy <= to_signed(-4,4);
@@ -646,7 +699,7 @@ begin
                         ball_dx <= to_signed(-1,4);
                         ball_dy <= y_change;
                         y_count <= b"0000";
-                        score1 <= '1';                        
+                        score1 <= '1';
                   elsif (ball_row = 58) then  -- bounce if at top and bottom 
                         ball_col <= ball_col + to_integer(ball_dx);
                         ball_row <= ball_row - 1;
@@ -706,6 +759,7 @@ begin
                             rowcnt <= rowcnt + 1;
                    else --after this go to startGame and wait for start button again if score occured
                         if ((score1 = '1') or (score2 = '1')) then
+                            score_flag <= '1'; --score_flag -> '1' to prompt score change
                             --this is probably where we can include a flag for score to actually update!! 
                             game <= startGame;
                             if (score1 = '1') then --get ball ready for movement 
@@ -743,12 +797,4 @@ begin
               end case;
              end if;
              end process;
-             
-	
-	
-
-	       
-	
-	       
-
 end arch;
