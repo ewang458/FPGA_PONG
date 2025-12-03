@@ -55,9 +55,9 @@ end component;
 	signal pad1_top: unsigned(5 downto 0) := to_unsigned(23, 6);
 	signal pad1_bot: unsigned(5 downto 0) := to_unsigned(35, 6);
 	signal ball_dx: signed(3 downto 0) := to_signed(2,4);
-	signal ball_dy: signed(3 downto 0) := to_signed(2,4);
-	signal y_change: signed(3 downto 0); 
-	signal y_thresh: signed(3 downto 0);
+	signal ball_dy: signed(4 downto 0) := to_signed(2,5);
+	signal y_change: signed(4 downto 0):= to_signed(2,5); 
+	signal y_thresh: signed(4 downto 0):= to_signed(2,5);
 	signal y_count: unsigned(3 downto 0);
 	signal ball: std_logic;
 	signal ball_y_top: unsigned(9 downto 0):= to_unsigned(240, 10);
@@ -68,7 +68,7 @@ end component;
 	signal score1: std_logic := '0'; --left player
 	signal score2: std_logic := '0'; --right player
 	signal hit_counter: unsigned(2 downto 0);
-	signal speed: unsigned(2 downto 0) := to_unsigned(4,3);
+	signal speed: unsigned(2 downto 0) := to_unsigned(2,3);
 	signal up_1: std_logic;
 	signal up_2: std_logic;
 	signal down_1: std_logic;
@@ -292,11 +292,13 @@ begin
 	begin 
 	if (reset = '1') then 
 	   pixel_jump <= 2;
+	   y_thresh <= to_signed(2,5);
+	   y_change <= to_signed(2,5);
 	   start_flag <= '0';
 	   ballcnt <= b"000";
 	   ball_dx <= to_signed(2,4);
-       ball_dy <= to_signed(2,4);
-       speed <= to_unsigned(4,3);
+       ball_dy <= to_signed(2,5);
+       speed <= to_unsigned(2,3);
        ball_y_top <= to_unsigned(240, 10);
 	   ball_y_bot <= to_unsigned(248,10);
 	   ball_x_right <= to_unsigned(328,10);
@@ -309,248 +311,109 @@ begin
 	frame_prev <= frame;
 	if ((start = '1') and (game = startGame)) then 
 	   pixel_jump <= 2;
+	   y_thresh <= to_signed(2,5);
 	   hit_counter <= to_unsigned(0,3);
-       speed <= to_unsigned(4,3);
+       speed <= to_unsigned(1,3);
        score1 <= '0'; --reset score flags here for now, may have to be dealt with differently when score added
        score2 <= '0';  
        start_flag <= '1';
     end if;
 	if (frame = '1') and (frame_prev = '0') then 
-	if(start_flag = '1') then
-	   if (ballcnt < 0) then  --counter for changing ball speed
-            ballcnt <= ballcnt + 1;
-       else 
-            ballcnt <= b"000"; --reset counter
-            if (abs(ball_dy) = pixel_jump) then -- if  y ball speed is 1 then we do diagonal movement 
-                y_count <= b"0000"; --reset y counter for L movement 
-                if ((ball_x_left = 8) or (ball_x_right = 632)) then --if ball in paddle range
-                    if (ball_x_left = 8) then  -- if on left side 
-                        if ((ball_y_top >= (pad1_top&"000")) and (ball_y_top < ((pad1_top + 3)&"000"))) or ((ball_y_bot >= (pad1_top&"000")) and (ball_y_bot < ((pad1_top + 3)&"000"))) then  -- if on top 3 pixels on paddle hit
-                            ball_x_left <= ball_x_left + pixel_jump; --change x valueand velcoity
-                            ball_x_right <= ball_x_right + pixel_jump;
-                            ball_dx <= to_signed(pixel_jump,4); 
-                        if (ball_dy < 0) then  --if ball was moving up, increase angle and keep moving up
-                            ball_dy <= ball_dy -pixel_jump;
-                            y_thresh <= abs(ball_dy - pixel_jump);
-                            y_change <= to_signed(-pixel_jump,4);
-                        else   --if ball was moving down, increase angle and now move up 
-                            ball_dy <= -ball_dy -pixel_jump;
-                            y_thresh <= abs(-ball_dy -pixel_jump);
-                            y_change <= to_signed(-pixel_jump,4);
-                        end if;
-                        hit_counter <= hit_counter + 1; -- keep track of paddle hits
-                    elsif ((ball_y_top >= ((pad1_top +3)&"000")) and (ball_y_top <((pad1_top +9)&"000"))) or ((ball_y_bot >= ((pad1_top +3)&"000")) and (ball_y_bot <((pad1_top +9)&"000")))then --if ball is in middle, decrease angle here
-                        ball_x_left <= ball_x_left + pixel_jump; --change x valueand velcoity
-                        ball_x_right <= ball_x_right + pixel_jump;
-                        ball_dx <= to_signed(pixel_jump, 4);
-                        ball_dy <= to_signed(0,4); --when y is 1 or -1 can only go to 0 horizontal movement 
-                        y_thresh <= to_signed(0,4);
-                        y_change <= to_signed(0,4);
-                        hit_counter <= hit_counter + 1;
-                    elsif ((ball_y_top >= ((pad1_top + 9)&"000")) and (ball_y_top < (pad1_bot&"000"))) or ((ball_y_bot >= ((pad1_top + 9)&"000")) and (ball_y_bot < (pad1_bot&"000"))) then --if bottom section of paddle
-                        ball_x_left <= ball_x_left + pixel_jump; --change x valueand velcoity
-                        ball_x_right <= ball_x_right + pixel_jump;
-                        ball_dx <= to_signed(pixel_jump, 4);
-                        if (ball_dy < 0) then --if ball was moving up, make it go down now increase angle
-                            ball_dy <= -ball_dy + pixel_jump;
-                            y_thresh <= -ball_dy + pixel_jump;
-                            y_change <= to_signed(pixel_jump, 4);
-                        else -- if ball was moving down, keep direction and increase angle 
-                            ball_dy <= ball_dy + pixel_jump;
-                            y_thresh <= ball_dy + pixel_jump;
-                            y_change <= to_signed(pixel_jump,4);
-                        end if;
-                        hit_counter <= hit_counter + 1;
-                    else --if not hitting paddle, continue in direction 
-                        if ((ball_x_right + to_integer(ball_dx)) > 639) then  
-                                ball_x_right <= to_unsigned(639, 10);
-                                ball_x_left <= to_unsigned(631, 10);
-                         else
-                             ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
-                             ball_x_right <= ball_x_right + to_integer(ball_dx);
-                         end if;              
-                         ball_y_top <= ball_y_top + to_integer(ball_dy); --change x valueand velcoity
-                         ball_y_bot <= ball_y_bot + to_integer(ball_dy);
-                    end if;
-                elsif (ball_x_right = 632) then 
-                    if ((ball_y_top >= (pad2_top&"000")) and (ball_y_top < ((pad2_top + 3)&"000"))) or ((ball_y_bot >= (pad2_top&"000")) and (ball_y_bot < ((pad2_top + 3)&"000"))) then  -- if on top 3 pixels on paddle hit
-                        ball_x_left <= ball_x_left - pixel_jump; --change x valueand velcoity
-                        ball_x_right <= ball_x_right - pixel_jump;
-                        ball_dx <= to_signed(-pixel_jump,4); 
-                        if (ball_dy < 0) then  --if ball was moving up, increase angle and keep moving up
-                            ball_dy <= ball_dy -pixel_jump;
-                            y_thresh <= abs(ball_dy - pixel_jump);
-                            y_change <= to_signed(-pixel_jump,4);
-                        else   --if ball was moving down, increase angle and now move up 
-                            ball_dy <= -ball_dy -pixel_jump;
-                            y_thresh <= abs(-ball_dy -pixel_jump);
-                            y_change <= to_signed(-pixel_jump,4);
-                        end if;
-                        hit_counter <= hit_counter + 1; -- keep track of paddle hits
-                    elsif ((ball_y_top >= ((pad2_top +3)&"000")) and (ball_y_top <((pad2_top +9)&"000"))) or ((ball_y_bot >= ((pad2_top +3)&"000")) and (ball_y_bot <((pad2_top +9)&"000"))) then --if ball is in middle, decrease angle here
-                        ball_x_left <= ball_x_left - pixel_jump; --change x valueand velcoity
-                        ball_x_right <= ball_x_right - pixel_jump;
-                        ball_dx <= to_signed(-pixel_jump, 4);
-                        ball_dy <= to_signed(0,4); --when y is 1 or -1 can only go to 0 horizontal movement 
-                        y_thresh <= to_signed(0,4);
-                        y_change <= to_signed(0,4);
-                        hit_counter <= hit_counter + 1;
-                    elsif ((ball_y_top >= ((pad2_top + 9)&"000")) and (ball_y_top < (pad2_bot&"000"))) or ((ball_y_bot >= ((pad2_top + 9)&"000")) and (ball_y_bot < (pad2_bot&"000"))) then --if bottom section of paddle
-                        ball_x_left <= ball_x_left - pixel_jump; --change x valueand velcoity
-                        ball_x_right <= ball_x_right - pixel_jump;
-                        ball_dx <= to_signed(-pixel_jump, 4);
-                        if (ball_dy < 0) then --if ball was moving up, make it go down now increase angle
-                            ball_dy <= -ball_dy + pixel_jump;
-                            y_thresh <= -ball_dy + pixel_jump;
-                            y_change <= to_signed(2, 4);
-                        else -- if ball was moving down, keep direction and increase angle 
-                            ball_dy <= ball_dy + 2;
-                            y_thresh <= ball_dy + 2;
-                            y_change <= to_signed(2,4);
-                        end if;
-                        hit_counter <= hit_counter + 1;
-                     else --if not hitting paddle, continue in direction 
-                        if ((ball_x_right + to_integer(ball_dx)) > 639) then  
-                                ball_x_right <= to_unsigned(639, 10);
-                                ball_x_left <= to_unsigned(631, 10);
-                         else
-                             ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
-                             ball_x_right <= ball_x_right + to_integer(ball_dx);
-                         end if;              
-                         ball_y_top <= ball_y_top + to_integer(ball_dy); --change x valueand velcoity
-                         ball_y_bot <= ball_y_bot + to_integer(ball_dy);
-                     end if;
-                 end if; 
-              elsif (ball_x_left = 0) then --if ball hits left side of screen (player 2 score)
-                        ball_dx <= to_signed(2,4); --set x velcoity so that it si a serve from player 1
-                        score2 <= '1'; --player 2 (right) score
-                        ball_x_right <= to_unsigned(32,10);
-	                    ball_x_left <= to_unsigned(24,10);
-                        start_flag <= '0';
-                  elsif (ball_x_right = 639) then  --if ball hits right side of screen ( player 1 score)
-                        ball_dx <= to_signed(-2,4); --plater 2 serves 
-                        score1 <= '1';   --player 1 (left) score  
-                        ball_x_right <= to_unsigned(616,10);
-	                    ball_x_left <= to_unsigned(608,10);    
-                        start_flag <= '0';               
-                  elsif (ball_y_bot = 472) then --if hits bottom of screen, bounce 
-                        ball_y_bot <= ball_y_bot -2;
-                        ball_y_top <= ball_y_top -2;
-                        ball_dy <= to_signed(-2, 4);
-                        if ((ball_x_right + to_integer(ball_dx)) > 639) then  
-                                ball_x_right <= to_unsigned(639, 10);
-                                ball_x_left <= to_unsigned(631, 10);
-                         else
-                             ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
-                             ball_x_right <= ball_x_right + to_integer(ball_dx);
-                         end if;
-                  elsif (ball_y_top = 8) then  --if hits top of screen bounce 
-                        ball_y_bot <= ball_y_bot + 2;
-                        ball_y_top <= ball_y_top + 2;
-                        ball_dy <= to_signed(2, 4);
-                        if ((ball_x_right + to_integer(ball_dx)) > 639) then  
-                             ball_x_right <= to_unsigned(639, 10);
-                             ball_x_left <= to_unsigned(631, 10);
-                        else
-                             ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
-                             ball_x_right <= ball_x_right + to_integer(ball_dx);
-                        end if;
-                  else  -- otherwise move diagonally 
-                       if ((ball_x_right + to_integer(ball_dx)) > 639) then  
-                             ball_x_right <= to_unsigned(639, 10);
-                             ball_x_left <= to_unsigned(631, 10);
-                        else
-                             ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
-                             ball_x_right <= ball_x_right + to_integer(ball_dx);
-                        end if;
-                        ball_y_top <= ball_y_top + to_integer(ball_dy); --change x valueand velcoity
-                        ball_y_bot <= ball_y_bot + to_integer(ball_dy);
-                  end if; 
-           else  -- if y velcoity is not equal to 1
+	   if(start_flag = '1') then
+	       if (ballcnt < speed) then  --counter for changing ball speed
+                ballcnt <= ballcnt + 1;
+           else 
+               ballcnt <= b"000"; --reset counter
                if ((ball_x_left = 8) or (ball_x_right = 632)) then --hitting paddles 
                     if (ball_x_left = 8) then -- if hits player 1 paddle 
                         if ((ball_y_top >= (pad1_top&"000")) and (ball_y_top < ((pad1_top + 3)&"000"))) or ((ball_y_bot >= (pad1_top&"000")) and (ball_y_bot < ((pad1_top + 3)&"000"))) then  -- hits top section of paddle
                                 y_count <= b"0000"; --set counter down to 0
-                                ball_x_left <= ball_x_left + 2;
-                                ball_x_right <= ball_x_right + 2; -- move away from paddle so that we don't have weird logic 
-                                ball_dx <= to_signed(2,4);
+                                ball_x_left <= ball_x_left + pixel_jump;
+                                ball_x_right <= ball_x_right + pixel_jump; -- move away from paddle so that we don't have weird logic 
+                                ball_dx <= to_signed(pixel_jump,4);
                                 if (ball_dy < 0) then --if ball is  moving up then keep moving up and then increase angle
-                                    if ((ball_dy - 2) < -8) then --cap angle at y =4
-                                        ball_dy <= to_signed(-8,4);
-                                        y_thresh <= to_signed(8,4);
-                                        y_change <= to_signed(-2,4);
+                                    if ((ball_dy - pixel_jump) < -8) then --cap angle at y =4
+                                        ball_dy <= to_signed(-8,5);
+                                        y_thresh <= to_signed(8,5);
+                                        y_change <= to_signed(-pixel_jump,5);
                                     else  
-                                        ball_dy <= ball_dy -2;
-                                        y_thresh <= abs(ball_dy - 2);
-                                        y_change <= to_signed(-2,4);
+                                        ball_dy <= ball_dy -pixel_jump;
+                                        y_thresh <= abs(ball_dy - pixel_jump);
+                                        y_change <= to_signed(-pixel_jump,5);
                                         
                                     end if;
                                 else  --if was going down make it go up and increase angle 
-                                    if ((-ball_dy - 2) < -8) then --cap angle at y = 4 
-                                        ball_dy <= to_signed(-8,4);
-                                        y_thresh <= to_signed(8,4);
-                                        y_change <= to_signed(-2,4);
+                                    if ((-ball_dy - pixel_jump) < -8) then --cap angle at y = 4 
+                                        ball_dy <= to_signed(-8,5);
+                                        y_thresh <= to_signed(8,5);
+                                        y_change <= to_signed(-pixel_jump,5);
                                         
                                     else --if was going up keep up increaes angle 
-                                        ball_dy <= -ball_dy -2;
-                                        y_thresh <= abs(-ball_dy -2);
-                                        y_change <= to_signed(-2,4);
+                                        ball_dy <= -ball_dy -pixel_jump;
+                                        y_thresh <= abs(-ball_dy -pixel_jump);
+                                        y_change <= to_signed(-pixel_jump,5);
                                    end if;
                                 end if;
                                 hit_counter <= hit_counter + 1;
                            elsif ((ball_y_top >= ((pad1_top +3)&"000")) and (ball_y_top <((pad1_top +9)&"000"))) or ((ball_y_bot >= ((pad1_top +3)&"000")) and (ball_y_bot <((pad1_top +9)&"000"))) then --if middle paddle
                                 y_count <= b"0000"; --reset counter
-                                ball_x_left <= ball_x_left + 2;
-                                ball_x_right <= ball_x_right + 2; -- move away from paddle so that we don't have weird logic 
-                                ball_dx <= to_signed(2, 4); 
+                                ball_x_left <= ball_x_left + pixel_jump;
+                                ball_x_right <= ball_x_right + pixel_jump; -- move away from paddle so that we don't have weird logic 
+                                ball_dx <= to_signed(pixel_jump, 4); 
                                 if (ball_dy < 0) then --decrease angle
-                                    ball_dy <= ball_dy  + 2;  
-                                    y_thresh <= abs(ball_dy + 2);
-                                    y_change <= to_signed(-2,4);
+                                    ball_dy <= ball_dy  + pixel_jump;  
+                                    y_thresh <= abs(ball_dy + pixel_jump);
+                                    y_change <= to_signed(-pixel_jump,5);
                                 else --if angle was 0 then move downwards, otherwise decreasing angle for moving down
-                                    ball_dy <= ball_dy -2;
-                                    y_thresh <= ball_dy - 2;
-                                    y_change <= to_signed(2,4);
+                                    ball_dy <= ball_dy -pixel_jump;
+                                    y_thresh <= abs(ball_dy - pixel_jump);
+                                    y_change <= to_signed(pixel_jump,5);
                                 end if;
                                 hit_counter <= hit_counter + 1;
                            elsif ((ball_y_top >= ((pad1_top + 9)&"000")) and (ball_y_top < (pad1_bot&"000"))) or ((ball_y_bot >= ((pad1_top + 9)&"000")) and (ball_y_bot < (pad1_bot&"000"))) then --if on bottom of paddle 
                                 y_count <= b"0000";
-                                ball_x_left <= ball_x_left + 2;
-                                ball_x_right <= ball_x_right + 2; -- move away from paddle so that we don't have weird logic 
-                                ball_dx <= to_signed(2, 4);
-                                if (ball_dy < 0) then -- if ball was moving up then increase angle keep moving up
-                                    if (-ball_dy + 2 > 8) then 
-                                        ball_dy <= to_signed(8,4); --cap y at 4
-                                        y_thresh <= to_signed(8,4);
-                                        y_change <= to_signed(2,4);
+                                ball_x_left <= ball_x_left + pixel_jump;
+                                ball_x_right <= ball_x_right + pixel_jump; -- move away from paddle so that we don't have weird logic 
+                                ball_dx <= to_signed(pixel_jump, 4);
+                                if (ball_dy < 0) then -- if ball was moving down then increase angle keep moving down
+                                    if (-ball_dy + pixel_jump > 8) then 
+                                        ball_dy <= to_signed(8,5); --cap y at 4
+                                        y_thresh <= to_signed(8,5);
+                                        y_change <= to_signed(pixel_jump,5);
                                     else  -- if ball was moving down then move up and increaes angle 
-                                        ball_dy <= -ball_dy + 2; 
-                                        y_thresh <= -ball_dy + 2;
-                                        y_change <= to_signed(2, 4);
+                                        ball_dy <= -ball_dy + pixel_jump; 
+                                        y_thresh <= -ball_dy + pixel_jump;
+                                        y_change <= to_signed(pixel_jump, 5);
                                     end if;
-                                elsif (ball_dy > 0) then --if ball was moving down then keep and increase angle
-                                    if (ball_dy + 2 > 8) then 
-                                        ball_dy <= to_signed(8,4);
-                                        y_thresh <= to_signed(8,4);
-                                        y_change <= to_signed(2,4);
+                                else --if ball was moving down then keep and increase angle
+                                    if (ball_dy + pixel_jump > 8) then 
+                                        ball_dy <= to_signed(8,5);
+                                        y_thresh <= to_signed(8,5);
+                                        y_change <= to_signed(pixel_jump,5);
                                     else
-                                        ball_dy <= ball_dy + 2;
-                                        y_thresh <= ball_dy + 2;
-                                        y_change <= to_signed(2,4);
+                                        ball_dy <= ball_dy + pixel_jump;
+                                        y_thresh <= ball_dy + pixel_jump;
+                                        y_change <= to_signed(pixel_jump,5);
                                     end if;
-                                else -- if ball was zero move it down 
-                                    ball_dy <= to_signed(2,4);
-                                    y_thresh <= to_signed(2,4);
-                                    y_change <= to_signed(2,4);
-                               end if;
+                                 end if;
                                 hit_counter <= hit_counter + 1;
                            else --if not hit paddle keep mvoing as planned
-                                if (y_count < unsigned(y_thresh)) then 
+                                if (y_thresh = 0) then 
+                                    if ((ball_x_right + to_integer(ball_dx)) > 639) then  
+                                        ball_x_right <= to_unsigned(639, 10);
+                                        ball_x_left <= to_unsigned(631, 10);
+                                    else
+                                        ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
+                                        ball_x_right <= ball_x_right + to_integer(ball_dx);
+                                    end if;
+                                elsif (y_count + pixel_jump < unsigned(abs(y_thresh))) then 
                                     ball_y_top <= ball_y_top+ to_integer(y_change);
                                     ball_y_bot <= ball_y_bot+ to_integer(y_change);
-                                    y_count <= y_count + 2;
+                                    y_count <= y_count + pixel_jump;
                                 else 
                                     y_count <= b"0000";
+                                    ball_y_top <= ball_y_top+ to_integer(y_change);
+                                    ball_y_bot <= ball_y_bot+ to_integer(y_change);
                                     if ((ball_x_right + to_integer(ball_dx)) > 639) then  
                                         ball_x_right <= to_unsigned(639, 10);
                                         ball_x_left <= to_unsigned(631, 10);
@@ -563,113 +426,136 @@ begin
                     elsif (ball_x_right = 632) then  -- ITS THE SAME LOGIC FOR PADDLE 2 JUST LOOK AT PADDLE 1 COMMENTS 
                         if ((ball_y_top >= (pad2_top&"000")) and (ball_y_top < ((pad2_top + 3)&"000"))) or ((ball_y_bot >= (pad2_top&"000")) and (ball_y_bot < ((pad2_top + 3)&"000"))) then  -- hits top section of paddle
                                 y_count <= b"0000"; --set counter down to 0
-                                ball_x_left <= ball_x_left - 2;
-                                ball_x_right <= ball_x_right - 2; -- move away from paddle so that we don't have weird logic 
-                                ball_dx <= to_signed(-2,4);
+                                ball_x_left <= ball_x_left - pixel_jump;
+                                ball_x_right <= ball_x_right - pixel_jump; -- move away from paddle so that we don't have weird logic 
+                                ball_dx <= to_signed(-pixel_jump,4);
                                 if (ball_dy < 0) then --if ball is  moving up then keep moving up and then increase angle
-                                    if ((ball_dy - 2) < -8) then --cap angle at y =4
-                                        ball_dy <= to_signed(-8,4);
-                                        y_thresh <= to_signed(8,4);
-                                        y_change <= to_signed(-2,4);
+                                    if ((ball_dy - pixel_jump) < -8) then --cap angle at y =4
+                                        ball_dy <= to_signed(-8,5);
+                                        y_thresh <= to_signed(8,5);
+                                        y_change <= to_signed(-pixel_jump,5);
                                     else  
-                                        ball_dy <= ball_dy -2;
-                                        y_thresh <= abs(ball_dy - 2);
-                                        y_change <= to_signed(-2,4);
+                                        ball_dy <= ball_dy -pixel_jump;
+                                        y_thresh <= abs(ball_dy - pixel_jump);
+                                        y_change <= to_signed(-pixel_jump,5);
                                         
                                     end if;
                                 else  --if was going down make it go up and increase angle 
-                                    if ((-ball_dy - 2) < -8) then --cap angle at y = 4 
-                                        ball_dy <= to_signed(-8,4);
-                                        y_thresh <= to_signed(8,4);
-                                        y_change <= to_signed(-2,4);
+                                    if ((-ball_dy - pixel_jump) < -8) then --cap angle at y = 4 
+                                        ball_dy <= to_signed(-8,5);
+                                        y_thresh <= to_signed(8,5);
+                                        y_change <= to_signed(-pixel_jump,5);
                                         
                                     else --if was going up keep up increaes angle 
-                                        ball_dy <= -ball_dy -2;
-                                        y_thresh <= abs(-ball_dy -2);
-                                        y_change <= to_signed(-2,4);
+                                        ball_dy <= -ball_dy -pixel_jump;
+                                        y_thresh <= abs(-ball_dy -pixel_jump);
+                                        y_change <= to_signed(-pixel_jump,5);
                                    end if;
                                 end if;
                                 hit_counter <= hit_counter + 1;
                            elsif ((ball_y_top >= ((pad2_top +3)&"000")) and (ball_y_top <((pad2_top +9)&"000"))) or ((ball_y_bot >= ((pad2_top +3)&"000")) and (ball_y_bot <((pad2_top +9)&"000")))then --if middle paddle
                                 y_count <= b"0000"; --reset counter 
-                                ball_x_left <= ball_x_left - 2;
-                                ball_x_right <= ball_x_right - 2; -- move away from paddle so that we don't have weird logic 
-                                ball_dx <= to_signed(-2, 4); 
+                                ball_x_left <= ball_x_left - pixel_jump;
+                                ball_x_right <= ball_x_right - pixel_jump; -- move away from paddle so that we don't have weird logic 
+                                ball_dx <= to_signed(-pixel_jump, 4); 
                                 if (ball_dy < 0) then --decrease angle
-                                    ball_dy <= ball_dy  + 2;  
-                                    y_thresh <= abs(ball_dy + 2);
-                                    y_change <= to_signed(-2,4);
+                                    ball_dy <= ball_dy  + pixel_jump;  
+                                    y_thresh <= abs(ball_dy + pixel_jump);
+                                    y_change <= to_signed(-pixel_jump,5);
                                 else --if angle was 0 then move downwards, otherwise decreasing angle for moving down
-                                    ball_dy <= ball_dy -2;
-                                    y_thresh <= ball_dy - 2;
-                                    y_change <= to_signed(2,4);
+                                    ball_dy <= ball_dy -pixel_jump;
+                                    y_thresh <= abs(ball_dy - pixel_jump);
+                                    y_change <= to_signed(pixel_jump,5);
                                 end if;
                                 hit_counter <= hit_counter + 1;
                            elsif ((ball_y_top >= ((pad2_top + 9)&"000")) and (ball_y_top < (pad2_bot&"000"))) or ((ball_y_bot >= ((pad2_top + 9)&"000")) and (ball_y_bot < (pad2_bot&"000"))) then --if on bottom of paddle 
                                 y_count <= b"0000";
-                                ball_x_left <= ball_x_left - 2;
-                                ball_x_right <= ball_x_right - 2; -- move away from paddle so that we don't have weird logic 
-                                ball_dx <= to_signed(-2, 4);
-                                if (ball_dy < 0) then -- if ball was moving up then increase angle keep moving up
-                                    if (-ball_dy + 2 > 8) then 
-                                        ball_dy <= to_signed(8,4); --cap y at 4
-                                        y_thresh <= to_signed(8,4);
-                                        y_change <= to_signed(2,4);
+                                ball_x_left <= ball_x_left - pixel_jump;
+                                ball_x_right <= ball_x_right - pixel_jump; -- move away from paddle so that we don't have weird logic 
+                                ball_dx <= to_signed(-pixel_jump, 4);
+                                if (ball_dy < 0) then -- if ball was moving down then increase angle keep moving down
+                                    if (-ball_dy + pixel_jump > 8) then 
+                                        ball_dy <= to_signed(8,5); --cap y at 4
+                                        y_thresh <= to_signed(8,5);
+                                        y_change <= to_signed(pixel_jump,5);
                                     else  -- if ball was moving down then move up and increaes angle 
-                                        ball_dy <= -ball_dy + 2; 
-                                        y_thresh <= -ball_dy + 2;
-                                        y_change <= to_signed(2, 4);
+                                        ball_dy <= -ball_dy + pixel_jump; 
+                                        y_thresh <= -ball_dy + pixel_jump;
+                                        y_change <= to_signed(pixel_jump, 5);
                                     end if;
-                                elsif (ball_dy > 0) then --if ball was moving down then keep and increase angle
-                                    if (ball_dy + 2 > 8) then 
-                                        ball_dy <= to_signed(8,4);
-                                        y_thresh <= to_signed(8,4);
-                                        y_change <= to_signed(2,4);
+                                else --if ball was moving down then keep and increase angle
+                                    if (ball_dy + pixel_jump > 8) then 
+                                        ball_dy <= to_signed(8,5);
+                                        y_thresh <= to_signed(8,5);
+                                        y_change <= to_signed(pixel_jump,5);
                                     else
-                                        ball_dy <= ball_dy + 2;
-                                        y_thresh <= ball_dy + 2;
-                                        y_change <= to_signed(2,4);
+                                        ball_dy <= ball_dy + pixel_jump;
+                                        y_thresh <= ball_dy + pixel_jump;
+                                        y_change <= to_signed(pixel_jump,5);
                                     end if;
-                                else -- if ball was zero move it down 
-                                    ball_dy <= to_signed(2,4);
-                                    y_thresh <= to_signed(2,4);
-                                    y_change <= to_signed(2,4);
+       
                                end if;
                                 hit_counter <= hit_counter + 1;
                            else --if not hit paddle keep mvoing as planned
-                                if (y_count < unsigned(y_thresh)) then 
+                              if (y_thresh = 0) then 
+                                    if ((ball_x_right + to_integer(ball_dx)) > 639) then  
+                                        ball_x_right <= to_unsigned(639, 10);
+                                        ball_x_left <= to_unsigned(631, 10);
+                                    else
+                                        ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
+                                        ball_x_right <= ball_x_right + to_integer(ball_dx);
+                                    end if;
+                                elsif (y_count + pixel_jump < unsigned(abs(y_thresh))) then 
                                     ball_y_top <= ball_y_top+ to_integer(y_change);
                                     ball_y_bot <= ball_y_bot+ to_integer(y_change);
-                                    y_count <= y_count + 2;
+                                    y_count <= y_count + pixel_jump;
                                 else 
                                     y_count <= b"0000";
+                                    ball_y_top <= ball_y_top+ to_integer(y_change);
+                                    ball_y_bot <= ball_y_bot+ to_integer(y_change);
                                     if ((ball_x_right + to_integer(ball_dx)) > 639) then  
-                                         ball_x_right <= to_unsigned(639, 10);
-                                         ball_x_left <= to_unsigned(631, 10);
+                                        ball_x_right <= to_unsigned(639, 10);
+                                        ball_x_left <= to_unsigned(631, 10);
                                     else
-                                         ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
-                                         ball_x_right <= ball_x_right + to_integer(ball_dx);
+                                        ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
+                                        ball_x_right <= ball_x_right + to_integer(ball_dx);
                                     end if;
                                 end if;        
                            end if;
                        end if;
-                  elsif (ball_x_left = 0) then  -- if ball is at edges increment score and say person scored 
+                  elsif (ball_x_left <= 0) then  -- if ball is at edges increment score and say person scored 
                         ball_dx <= to_signed(2,4);
-                        ball_dy <= y_change;
+                        pixel_jump <= 2;
+                        y_thresh <= to_signed(2,5);
+                        if (y_change < 0) then 
+                            ball_dy <= to_signed(-2, 5);
+                            y_change <= to_signed(-2, 5);
+                        else
+                            ball_dy <= to_signed(2, 5);
+                            y_change <= to_signed(2, 5);
+                        end if;
                         y_count <= b"0000";
                         score2 <= '1';
                         ball_x_right <= to_unsigned(32,10);
 	                    ball_x_left <= to_unsigned(24,10);
                         start_flag <= '0';
-                  elsif (ball_x_right = 639) then 
+                  elsif (ball_x_right >= 639) then 
                         ball_dx <= to_signed(-2,4);
-                        ball_dy <= y_change;
+                        pixel_jump <= 2;
+                        y_thresh <= to_signed(2,5);
+                        if (y_change < 0) then 
+                            ball_dy <= to_signed(-2, 5);
+                            y_change <= to_signed(-2, 5);
+                        else
+                            ball_dy <= to_signed(2, 5);
+                            y_change <= to_signed(2, 5);
+                        end if;
                         y_count <= b"0000";
                         score1 <= '1';
                         ball_x_right <= to_unsigned(616,10);
 	                    ball_x_left <= to_unsigned(608,10);
                         start_flag <= '0';
-                  elsif (ball_y_bot = 472) then  -- bounce if at top and bottom 
+                  elsif (ball_y_bot >= 472) then  -- bounce if at top and bottom 
                         if ((ball_x_right + to_integer(ball_dx)) > 639) then  
                              ball_x_right <= to_unsigned(639, 10);
                              ball_x_left <= to_unsigned(631, 10);
@@ -677,12 +563,12 @@ begin
                              ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
                              ball_x_right <= ball_x_right + to_integer(ball_dx);
                         end if;
-                        ball_y_top <= ball_y_top - 2;
-                        ball_y_bot <= ball_y_bot - 2;
+                        ball_y_top <= ball_y_top - pixel_jump;
+                        ball_y_bot <= ball_y_bot - pixel_jump;
                         y_change <= -y_change;
                         ball_dy <= -ball_dy;
                         y_count <= b"0000";
-                  elsif (ball_y_top = 8) then 
+                  elsif (ball_y_top <= 8) then 
                        if ((ball_x_right + to_integer(ball_dx)) > 639) then  
                              ball_x_right <= to_unsigned(639, 10);
                              ball_x_left <= to_unsigned(631, 10);
@@ -690,34 +576,69 @@ begin
                              ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
                              ball_x_right <= ball_x_right + to_integer(ball_dx);
                         end if;
-                        ball_y_top <= ball_y_top + 2;
-                        ball_y_bot <= ball_y_bot + 2;
+                        ball_y_top <= ball_y_top + pixel_jump;
+                        ball_y_bot <= ball_y_bot + pixel_jump;
                         ball_dy <= -ball_dy;
                         y_change <= -y_change;
                         y_count <= b"0000";
                   else  --otherwise move as normal 
-                        if (y_count < unsigned(y_thresh)) then 
-                            ball_y_top <= ball_y_top+ to_integer(y_change);
-                            ball_y_bot <= ball_y_bot+ to_integer(y_change);
-                            y_count <= y_count + 2;
-                        else 
-                            y_count <= b"0000";
-                            if ((ball_x_right + to_integer(ball_dx)) > 639) then  
-                                 ball_x_right <= to_unsigned(639, 10);
-                                 ball_x_left <= to_unsigned(631, 10);
-                            else
-                                 ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
-                                 ball_x_right <= ball_x_right + to_integer(ball_dx);
-                            end if;
-                        end if;      
+                        if (y_thresh = 0) then 
+                                    if ((ball_x_right + to_integer(ball_dx)) > 639) then  
+                                        ball_x_right <= to_unsigned(639, 10);
+                                        ball_x_left <= to_unsigned(631, 10);
+                                    else
+                                        ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
+                                        ball_x_right <= ball_x_right + to_integer(ball_dx);
+                                    end if;
+                                elsif (y_count + pixel_jump < unsigned(abs(y_thresh))) then 
+                                    ball_y_top <= ball_y_top+ to_integer(y_change);
+                                    ball_y_bot <= ball_y_bot+ to_integer(y_change);
+                                    y_count <= y_count + pixel_jump;
+                                else 
+                                    y_count <= b"0000";
+                                    ball_y_top <= ball_y_top+ to_integer(y_change);
+                                    ball_y_bot <= ball_y_bot+ to_integer(y_change);
+                                    if ((ball_x_right + to_integer(ball_dx)) > 639) then  
+                                        ball_x_right <= to_unsigned(639, 10);
+                                        ball_x_left <= to_unsigned(631, 10);
+                                    else
+                                        ball_x_left <= ball_x_left + to_integer(ball_dx); --change x valueand velcoity
+                                        ball_x_right <= ball_x_right + to_integer(ball_dx);
+                                    end if;
+                                end if;             
                   end if; 
                 end if;                                      
-                end if;    
                 if (hit_counter = 2) then --if 2 hits then increase speed
                     ballcnt <= b"000";
                     hit_counter <= to_unsigned(0,3);
-                    if (speed > 1) then 
+                    if (speed > 0) then 
                         speed <= speed -1;
+                    elsif (speed = 0) then 
+                        pixel_jump <= 4;
+                        if (ball_dx < 0) then 
+                            ball_dx <= to_signed(-4, 4);
+                        else
+                            ball_dx <= to_signed(4, 4);
+                        end if;
+                        if (y_thresh = 2) then 
+                            y_thresh <= to_signed(4,5);
+                            if (ball_dy) < 0 then 
+                                ball_dy <= to_signed(-4, 5);
+                                y_change <= to_signed(-4, 5);
+                            else 
+                                ball_dy <= to_signed(4,5);
+                                y_change <= to_signed(4, 5);
+                            end if;
+                        elsif (y_thresh = 6) then 
+                            y_thresh <= to_signed(8,5);
+                            if (ball_dy) < 0 then 
+                                ball_dy <= to_signed(-8, 5);
+                                y_change <= to_signed(-4, 5);
+                            else 
+                                ball_dy <= to_signed(8,5);
+                                y_change <= to_signed(4, 5);
+                            end if;
+                        end if;
                     end if;
                 end if;  
                 end if;
